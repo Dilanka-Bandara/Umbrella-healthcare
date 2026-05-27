@@ -115,4 +115,49 @@ const updateConsultation = async (req, res) => {
     }
 };
 
-module.exports = { connectPatient, saveConsultation, updateConsultation };
+// @desc    Prescribe a specific medicine from the pharmacy to a consultation
+// @route   POST /api/consultations/record/:id/prescribe
+const prescribeMedicine = async (req, res) => {
+    try {
+        const doctor_id = req.user.id;
+        const consultation_id = req.params.id; // The specific visit
+        const { medicine_id, instructions } = req.body;
+
+        if (!medicine_id || !instructions) {
+            return res.status(400).json({ message: 'Medicine ID and instructions are required.' });
+        }
+
+        // 1. Verify the consultation exists AND belongs to this doctor
+        const checkRecord = await db.query('SELECT * FROM consultations WHERE id = $1', [consultation_id]);
+        if (checkRecord.rows.length === 0) {
+            return res.status(404).json({ message: 'Consultation record not found.' });
+        }
+        if (checkRecord.rows[0].doctor_id !== doctor_id) {
+            return res.status(403).json({ message: 'You can only prescribe medicine for your own patients.' });
+        }
+
+        // 2. Verify the medicine actually exists in the pharmacy inventory
+        const checkMedicine = await db.query('SELECT name FROM medicines WHERE id = $1', [medicine_id]);
+        if (checkMedicine.rows.length === 0) {
+            return res.status(404).json({ message: 'Medicine not found in pharmacy inventory.' });
+        }
+
+        // 3. Save the exact prescription to the database
+        const newPrescription = await db.query(
+            `INSERT INTO consultation_prescriptions (consultation_id, medicine_id, instructions) 
+             VALUES ($1, $2, $3) RETURNING *`,
+            [consultation_id, medicine_id, instructions]
+        );
+
+        res.status(201).json({
+            message: `Successfully prescribed ${checkMedicine.rows[0].name} to the patient!`,
+            prescription: newPrescription.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error prescribing medicine:', error.message);
+        res.status(500).json({ message: 'Server Error saving prescription.' });
+    }
+};
+
+module.exports = { connectPatient, saveConsultation, updateConsultation, prescribeMedicine };
