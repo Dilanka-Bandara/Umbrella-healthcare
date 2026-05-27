@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const db = require('./src/config/db'); 
+const pharmacyRoutes = require('./src/routes/pharmacyRoutes');
 
 // 1. Import Routes
 const consultationRoutes = require('./src/routes/consultationRoutes');
@@ -16,6 +17,7 @@ const port = process.env.PORT || 5000;
 // 3. Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/api/pharmacy', pharmacyRoutes);
 
 
 // 4. Use Routes
