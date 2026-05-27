@@ -74,4 +74,45 @@ const saveConsultation = async (req, res) => {
     }
 };
 
-module.exports = { connectPatient, saveConsultation };
+// @desc    Update an existing medical record (Only the original doctor can do this)
+// @route   PUT /api/consultations/record/:id
+const updateConsultation = async (req, res) => {
+    try {
+        const doctor_id = req.user.id; // From the logged-in doctor's token
+        const consultation_id = req.params.id; // From the URL
+        const { symptoms_notes, diagnosis } = req.body;
+
+        // 1. Find the consultation in the database
+        const checkRecord = await db.query('SELECT * FROM consultations WHERE id = $1', [consultation_id]);
+
+        if (checkRecord.rows.length === 0) {
+            return res.status(404).json({ message: 'Medical record not found.' });
+        }
+
+        // 2. STRICT SECURITY CHECK: Did THIS doctor write THIS record?
+        if (checkRecord.rows[0].doctor_id !== doctor_id) {
+            return res.status(403).json({ 
+                message: 'Legal Restriction: You are only authorized to edit your own medical records.' 
+            });
+        }
+
+        // 3. Update the record and the new updated_at timestamp
+        const updatedRecord = await db.query(
+            `UPDATE consultations 
+             SET symptoms_notes = $1, diagnosis = $2, updated_at = NOW() 
+             WHERE id = $3 RETURNING id, symptoms_notes, diagnosis, updated_at`,
+            [symptoms_notes, diagnosis, consultation_id]
+        );
+
+        res.status(200).json({ 
+            message: 'Medical record and prescription updated successfully!',
+            record: updatedRecord.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error updating consultation:', error.message);
+        res.status(500).json({ message: 'Server Error updating medical record.' });
+    }
+};
+
+module.exports = { connectPatient, saveConsultation, updateConsultation };
