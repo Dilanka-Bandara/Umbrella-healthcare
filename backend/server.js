@@ -12,6 +12,9 @@ const uploadRoutes = require('./src/routes/uploadRoutes');
 const consultationRoutes = require('./src/routes/consultationRoutes');
 const pharmacyRoutes = require('./src/routes/pharmacyRoutes');
 const appointmentRoutes = require('./src/routes/appointmentRoutes');
+const messageRoutes = require('./src/routes/messageRoutes');
+const checkoutRoutes = require('./src/routes/checkoutRoutes');
+const orderRoutes = require('./src/routes/orderRoutes');
 
 // Initialize the app
 const app = express();
@@ -37,6 +40,9 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/consultations', consultationRoutes);
 app.use('/api/pharmacy', pharmacyRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/checkout', checkoutRoutes);
+app.use('/api/orders', orderRoutes);
 
 // Basic Route
 app.get('/', (req, res) => {
@@ -47,7 +53,33 @@ app.get('/', (req, res) => {
 io.on('connection', (socket) => {
     console.log(`🔌 A user connected to the chat! Socket ID: ${socket.id}`);
 
-    // If a user disconnects
+    // 1. Join a private chat room
+    // The frontend will send a unique room ID (usually the two user IDs combined)
+    socket.on('join_room', (room) => {
+        socket.join(room);
+        console.log(`User joined private room: ${room}`);
+    });
+
+    // 2. Listen for new messages being sent
+    socket.on('send_message', async (data) => {
+        // data expects: { sender_id, receiver_id, message_text, room }
+        try {
+            // A. Save the message to the database immediately
+            const savedMsg = await db.query(
+                `INSERT INTO messages (sender_id, receiver_id, message_text) 
+                 VALUES ($1, $2, $3) RETURNING *`,
+                [data.sender_id, data.receiver_id, data.message_text]
+            );
+
+            // B. Broadcast the saved message ONLY to the people in this specific room
+            io.to(data.room).emit('receive_message', savedMsg.rows[0]);
+            
+        } catch (error) {
+            console.error('Socket DB Error saving message:', error.message);
+        }
+    });
+
+    // 3. Handle disconnection
     socket.on('disconnect', () => {
         console.log(`❌ User disconnected: ${socket.id}`);
     });
