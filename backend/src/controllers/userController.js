@@ -101,7 +101,36 @@ const loginUser = async (req, res) => {
     }
 };
 
+// @desc    Update user profile picture
+// @route   PUT /api/users/profile-picture
+const updateProfilePicture = async (req, res) => {
+    try {
+        const userId = req.user.id; // We know who they are from their token!
+        const { profile_picture_url } = req.body; // The Cloudinary link they just uploaded
+
+        if (!profile_picture_url) {
+            return res.status(400).json({ message: 'Please provide a valid image URL.' });
+        }
+
+        const updatedUser = await db.query(
+            `UPDATE users SET profile_picture_url = $1, updated_at = NOW() 
+             WHERE id = $2 RETURNING id, full_name, role, profile_picture_url`,
+            [profile_picture_url, userId]
+        );
+
+        res.status(200).json({
+            message: 'Profile picture updated successfully!',
+            user: updatedUser.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error updating profile picture:', error.message);
+        res.status(500).json({ message: 'Server Error updating profile.' });
+    }
+};
+
 module.exports = {
     registerUser,
-    loginUser
+    loginUser,
+    updateProfilePicture // NEW
 };

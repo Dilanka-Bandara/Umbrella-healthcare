@@ -1,20 +1,27 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser } = require('../controllers/userController');
 
-// Import the Security Guard
+// 1. Import ALL user functions on a SINGLE line
+const { registerUser, loginUser, updateProfilePicture } = require('../controllers/userController');
+
+// 2. Import the Security Guard for the profile picture
 const { protect } = require('../middlewares/authMiddleware');
 
+// Route 1: Register
 router.post('/register', registerUser);
+
+// Route 2: Login
 router.post('/login', loginUser);
 
-// NEW: A protected route! The 'protect' guard stands in front of it.
+// Route 3: View Profile
 router.get('/profile', protect, (req, res) => {
-    // If the guard lets them through, send them this secret data:
     res.status(200).json({ 
         message: 'Welcome to your private dashboard!',
         user_details: req.user 
     });
 });
+
+// Route 4: Update Profile Picture (Sprint 1)
+router.put('/profile-picture', protect, updateProfilePicture);
 
 module.exports = router;
