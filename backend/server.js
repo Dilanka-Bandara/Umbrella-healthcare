@@ -4,6 +4,7 @@ const cors = require('cors');
 const db = require('./src/config/db'); 
 
 // 1. Import Routes
+const consultationRoutes = require('./src/routes/consultationRoutes');
 const userRoutes = require('./src/routes/userRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const uploadRoutes = require('./src/routes/uploadRoutes'); // Cloudinary Upload Route
@@ -16,10 +17,12 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+
 // 4. Use Routes
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes); // Safe to use here!
+app.use('/api/consultations', consultationRoutes);
 
 // 5. Basic Route
 app.get('/', (req, res) => {
