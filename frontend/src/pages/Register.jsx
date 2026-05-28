@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { UserPlus, User, Stethoscope, Mail, Lock, Phone, FileText, Loader2 } from 'lucide-react';
+import { UserPlus, User, Stethoscope, Mail, Lock, Phone, FileText, Loader2, ArrowLeft } from 'lucide-react';
 import axios from 'axios';
 
 const Register = () => {
@@ -80,7 +80,7 @@ const Register = () => {
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> 
           Back
         </button>
-        
+
         <div className="text-center">
           <div className="mx-auto h-12 w-12 bg-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-blue-500/30">
             <UserPlus className="h-6 w-6 text-white" />
