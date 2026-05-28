@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Calendar, QrCode, ClipboardList, Search, User, ArrowRight } from 'lucide-react';
-import axios from 'axios';
 
 const DoctorDashboard = () => {
   const navigate = useNavigate();
@@ -17,7 +16,6 @@ const DoctorDashboard = () => {
 
   useEffect(() => {
     // We will fetch real patients here later!
-    // For now, if the API isn't fully ready, we will use mock data so you can see the UI.
     const mockPatients = [
       { id: 1, full_name: "John Doe", connected_on: "2026-05-28", status: "Active" }
     ];

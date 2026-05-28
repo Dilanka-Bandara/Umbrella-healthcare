@@ -67,7 +67,6 @@ const Home = () => {
 
 // Placeholders for future sprints
 const Shop = () => <div className="p-8 text-center text-gray-900 dark:text-white text-2xl font-bold mt-10">Medicine Catalog 💊</div>;
-const DoctorDashboard = () => <div className="p-8 text-center text-gray-900 dark:text-white text-2xl font-bold mt-10">Doctor Workspace 🩺</div>;
 
 function App() {
   return (
