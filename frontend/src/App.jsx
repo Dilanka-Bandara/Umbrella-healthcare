@@ -6,6 +6,7 @@ import MedicalRecords from './pages/MedicalRecords';
 import UserProfile from './pages/UserProfile';
 import Register from './pages/Register';
 import Login from './pages/Login';
+import ConnectDoctor from './pages/ConnectDoctor';
 
 // --- THE SMART HOME COMPONENT ---
 const Home = () => {
@@ -83,6 +84,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/login" element={<Login />} />
             <Route path="/shop" element={<Shop />} />
+            <Route path="/connect" element={<ConnectDoctor />} />
           </Routes>
         </main>
         

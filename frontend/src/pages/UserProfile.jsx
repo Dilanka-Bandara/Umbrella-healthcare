@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { User, MapPin, CreditCard, Shield, Plus, Check } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { User, MapPin, CreditCard, Shield, Plus, Check, ArrowLeft } from 'lucide-react';
 
 const UserProfile = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('personal');
   const [isSaved, setIsSaved] = useState(false);
 
@@ -13,6 +15,16 @@ const UserProfile = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 text-gray-900 dark:text-gray-100 transition-colors">
+      
+      {/* NEW: Universal Back Button */}
+      <button 
+        onClick={() => navigate(-1)} 
+        className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors mb-6 group"
+      >
+        <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> 
+        Back to Dashboard
+      </button>
+
       <h1 className="text-3xl font-bold mb-8">Account Settings</h1>
 
       <div className="flex flex-col lg:flex-row gap-8">
@@ -33,7 +45,7 @@ const UserProfile = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Full Name</label>
-                    <input type="text" defaultValue="John Doe" className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 outline-none" />
+                    <input type="text" defaultValue="John Doe" className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 outline-none text-gray-900 dark:text-white" />
                   </div>
                 </div>
               </div>
