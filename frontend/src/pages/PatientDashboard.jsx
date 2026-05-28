@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, ShoppingBag, MessageSquare, Clock, User, FileText, Camera } from 'lucide-react';
+import { Calendar, ShoppingBag, MessageSquare, Clock, User, FileText, Camera, QrCode } from 'lucide-react';
 import axios from 'axios'; // 🚨 NEW: Imported Axios to talk to our backend!
 import ChatPopup from '../components/ChatPopup';
 
@@ -206,6 +206,19 @@ const PatientDashboard = () => {
                 <div>
                   <div className="font-semibold text-sm group-hover:text-cyan-500 transition-colors">Telehealth Chat</div>
                   <div className="text-xs text-gray-400">Talk directly with your doctor</div>
+                </div>
+              </button>
+
+              <button 
+                onClick={() => navigate('/connect')}
+                className="flex items-center gap-3 p-3.5 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-left transition-all group shadow-sm"
+              >
+                <div className="bg-blue-600 text-white p-2 rounded-lg group-hover:scale-105 transition-transform">
+                  <QrCode className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="font-bold text-sm text-blue-900 dark:text-blue-300">Link with Doctor</div>
+                  <div className="text-xs text-blue-700/70 dark:text-blue-400/70">Scan QR or enter Clinic ID</div>
                 </div>
               </button>
 

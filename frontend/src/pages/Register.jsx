@@ -72,6 +72,14 @@ const Register = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center py-12 px-4 sm:px-6 transition-colors duration-200">
       <div className="max-w-md w-full space-y-8 bg-white dark:bg-gray-900 p-8 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800">
+        {/* NEW: Universal Back Button */}
+        <button 
+          onClick={() => navigate(-1)} 
+          className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors group absolute top-8 left-8 sm:static sm:mb-4"
+        >
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> 
+          Back
+        </button>
         
         <div className="text-center">
           <div className="mx-auto h-12 w-12 bg-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-blue-500/30">

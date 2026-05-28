@@ -43,6 +43,8 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/checkout', checkoutRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/patients', require('./routes/patientRoutes'));
+
 
 // Basic Route
 app.get('/', (req, res) => {
