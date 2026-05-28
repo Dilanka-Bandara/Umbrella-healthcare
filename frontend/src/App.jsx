@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
+import PatientDashboard from './pages/PatientDashboard';
+import MedicalRecords from './pages/MedicalRecords'; 
 
 // The Upgraded Hero Homepage
 const Home = () => (
@@ -30,7 +32,7 @@ const Home = () => (
   </div>
 );
 
-// Placeholders for the next sprint
+// Placeholders for the next sprints
 const Shop = () => <div className="p-8 text-center text-gray-900 dark:text-white text-2xl font-bold mt-10">Medicine Catalog 💊</div>;
 const Login = () => <div className="p-8 text-center text-gray-900 dark:text-white text-2xl font-bold mt-10">Login Screen 🔐</div>;
 
@@ -39,13 +41,18 @@ function App() {
     <Router>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 font-sans transition-colors duration-200">
         <Navbar />
+        
+        {/* Page Content Routing */}
         <main>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/dashboard" element={<PatientDashboard />} />
+            <Route path="/records" element={<MedicalRecords />} />
             <Route path="/shop" element={<Shop />} />
             <Route path="/login" element={<Login />} />
           </Routes>
         </main>
+        
       </div>
     </Router>
   );
