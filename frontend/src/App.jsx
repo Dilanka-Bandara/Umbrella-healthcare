@@ -7,6 +7,7 @@ import UserProfile from './pages/UserProfile';
 import Register from './pages/Register';
 import Login from './pages/Login';
 import ConnectDoctor from './pages/ConnectDoctor';
+import DoctorDashboard from './pages/DoctorDashboard';
 
 // --- THE SMART HOME COMPONENT ---
 const Home = () => {
