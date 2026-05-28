@@ -43,7 +43,8 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/checkout', checkoutRoutes);
 app.use('/api/orders', orderRoutes);
-app.use('/api/patients', require('./routes/patientRoutes'));
+app.use('/api/patients', require('./src/routes/patientRoutes'));
+app.use('/api/doctors', require('./src/routes/doctorRoutes'));
 
 
 // Basic Route
