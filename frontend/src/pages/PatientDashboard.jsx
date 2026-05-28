@@ -1,13 +1,14 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, ShoppingBag, MessageSquare, Clock, User, FileText, Camera } from 'lucide-react';
+import axios from 'axios'; // 🚨 NEW: Imported Axios to talk to our backend!
 import ChatPopup from '../components/ChatPopup';
 
 const PatientDashboard = () => {
   const navigate = useNavigate();
   const [isChatOpen, setIsChatOpen] = useState(false);
   
-  // New State & Refs for Profile Picture Upload
+  // State & Refs for Profile Picture Upload
   const [profileImage, setProfileImage] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -20,14 +21,40 @@ const PatientDashboard = () => {
     { id: "42d08f39", medicine_name: "Paracetamol", quantity: 2, price: "5.99", status: "Processing", purchase_date: "2026-05-27" }
   ];
 
-  // Function to handle the image selection visually
-  const handleImageUpload = (event) => {
+  // 🚨 UPGRADED: Cloud Upload Function
+  const handleImageUpload = async (event) => {
     const file = event.target.files[0];
-    if (file) {
-      // Create a temporary URL to show the image instantly on the screen
-      // Later, this is where we will send the file to your backend via Axios!
-      const imageUrl = URL.createObjectURL(file);
-      setProfileImage(imageUrl);
+    if (!file) return;
+
+    // 1. Optimistic UI: Show the image locally right away so the user feels it is fast
+    const tempUrl = URL.createObjectURL(file);
+    setProfileImage(tempUrl);
+
+    // 2. Prepare the payload for the backend
+    const formData = new FormData();
+    formData.append('document', file); // 'document' matches what your backend Multer config expects!
+
+    try {
+      // 3. Send the image to your Node.js server
+      const response = await axios.post('http://localhost:5000/api/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+          // Future Note: We will pass the JWT Bearer token here once the Login page is built!
+        }
+      });
+
+      // 4. Success! Grab the live Cloudinary URL
+      const liveCloudUrl = response.data.file_url;
+      
+      // Update the screen with the permanent internet URL
+      setProfileImage(liveCloudUrl);
+      console.log("Success! Permanent Image URL:", liveCloudUrl);
+
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      alert("Failed to upload image to the cloud. Is your backend running?");
+      // Revert to null if the upload failed
+      setProfileImage(null); 
     }
   };
 
@@ -109,7 +136,7 @@ const PatientDashboard = () => {
         {/* Quick Action Sidebars (Right 1 Column) */}
         <div className="space-y-6">
           
-          {/* NEW: Profile Summary Card with Interactive Avatar */}
+          {/* Profile Summary Card with Interactive Avatar */}
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm flex flex-col items-center text-center transition-colors">
             
             {/* Hidden File Input */}
