@@ -1,8 +1,10 @@
 import React from 'react';
-import { FileText, ShieldAlert, Award, Calendar } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { FileText, ShieldAlert, Award, Calendar, ArrowLeft } from 'lucide-react';
 
 const MedicalRecords = () => {
-  // Mirroring consultation structure schemas from the backend!
+  const navigate = useNavigate(); // Initialize the navigation engine
+
   const mockRecords = [
     {
       id: "c768-a85e",
@@ -21,6 +23,15 @@ const MedicalRecords = () => {
   return (
     <div className="max-w-5xl mx-auto px-4 py-10 text-gray-900 dark:text-gray-100 transition-colors">
       
+      {/* NEW: Professional Back Button */}
+      <button 
+        onClick={() => navigate(-1)} 
+        className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors mb-6 group"
+      >
+        <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> 
+        Back to Previous Page
+      </button>
+
       {/* Page Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-200 dark:border-gray-800 pb-6 mb-8 gap-4">
         <div>
@@ -37,7 +48,6 @@ const MedicalRecords = () => {
         {mockRecords.map((record) => (
           <div key={record.id} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm">
             
-            {/* Record Metadata Stripe */}
             <div className="bg-gray-50 dark:bg-gray-800/60 px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex flex-wrap justify-between items-center gap-2">
               <div className="flex items-center gap-2 text-sm font-semibold">
                 <Calendar className="h-4 w-4 text-blue-600" /> {record.date}
@@ -45,7 +55,6 @@ const MedicalRecords = () => {
               <span className="text-xs text-gray-400 font-mono">Record ID: #{record.id}</span>
             </div>
 
-            {/* Record Clinical Contents */}
             <div className="p-6 space-y-6">
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -66,7 +75,6 @@ const MedicalRecords = () => {
                 </p>
               </div>
 
-              {/* Prescriptions Sub-Card */}
               <div className="border border-blue-100 dark:border-blue-900/40 bg-blue-50/40 dark:bg-blue-950/10 rounded-xl p-5">
                 <h4 className="text-sm font-bold text-blue-900 dark:text-blue-300 flex items-center gap-2 mb-3">
                   <FileText className="h-4 w-4" /> Active Pharmacy Prescription Attached
@@ -86,7 +94,6 @@ const MedicalRecords = () => {
           </div>
         ))}
       </div>
-
     </div>
   );
 };
