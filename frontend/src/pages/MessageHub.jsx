@@ -39,7 +39,7 @@ const MessageHub = () => {
     if (currentUser && currentUser.role === 'doctor') {
       fetchPatients();
     }
-  }, [currentUser, token]);
+  }, [currentUser?.id, token]);
 
   // 2. Handle selecting a patient to chat with
   useEffect(() => {
