@@ -7,6 +7,9 @@ import ChatPopup from '../components/ChatPopup';
 const PatientDashboard = () => {
   const navigate = useNavigate();
   const [isChatOpen, setIsChatOpen] = useState(false);
+
+  // 🚨 ADD THIS MISSING LINE HERE:
+  const connectedDoctorId = localStorage.getItem('connectedDoctorId');
   
   // State & Refs for Profile Picture Upload
   const [profileImage, setProfileImage] = useState(null);

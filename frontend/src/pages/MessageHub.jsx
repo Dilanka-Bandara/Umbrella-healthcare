@@ -49,6 +49,8 @@ const MessageHub = () => {
     const roomId = [currentUser.id, activeChat.id].sort().join('_');
     
     // Join the secure socket room
+    // NEW: Log it so we can verify the handshake!
+    console.log(`[Doctor] Joining Room: ${roomId}`);
     socket.emit('join_room', roomId);
 
     // Fetch the chat history from the database
