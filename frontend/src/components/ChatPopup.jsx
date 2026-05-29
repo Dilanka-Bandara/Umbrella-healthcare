@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, User } from 'lucide-react';
+import { X, Send, User, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
@@ -17,8 +17,11 @@ const ChatPopup = ({ isOpen, onClose, doctorId, doctorName }) => {
   useEffect(() => {
     if (!isOpen || !currentUser || !doctorId) return;
 
-    // Room ID must be exactly the same logic as the doctor side!
+    // Create the unique room ID
     const roomId = [currentUser.id, doctorId].sort().join('_');
+    
+    // Explicitly join the room and log it to the console!
+    console.log(`[Patient] Joining Room: ${roomId}`);
     socket.emit('join_room', roomId);
 
     // Fetch history
@@ -37,6 +40,7 @@ const ChatPopup = ({ isOpen, onClose, doctorId, doctorName }) => {
 
     // Listen for live messages
     const receiveMessageHandler = (newMsg) => {
+      console.log("[Patient] Received live message!", newMsg);
       setChatLog((prev) => [...prev, newMsg]);
       scrollToBottom();
     };
@@ -56,7 +60,8 @@ const ChatPopup = ({ isOpen, onClose, doctorId, doctorName }) => {
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    if (!message.trim() || !currentUser) return;
+    // NEW SAFETY CHECK: Prevent sending if doctorId is missing!
+    if (!message.trim() || !currentUser || !doctorId) return;
 
     const roomId = [currentUser.id, doctorId].sort().join('_');
     
@@ -67,20 +72,36 @@ const ChatPopup = ({ isOpen, onClose, doctorId, doctorName }) => {
       room: roomId
     };
 
+    console.log("[Patient] Sending message:", messageData);
     socket.emit('send_message', messageData);
     setMessage('');
   };
 
   if (!isOpen) return null;
 
+  // NEW UI: If the patient hasn't linked a doctor, show an error!
+  if (!doctorId) {
+    return (
+      <div className="fixed bottom-6 right-6 w-96 h-[450px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-4">
+        <div className="bg-red-600 p-4 flex justify-between items-center text-white">
+          <h3 className="font-semibold text-sm">Connection Required</h3>
+          <button onClick={onClose} className="hover:bg-white/20 p-1 rounded-lg"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="flex-1 p-8 flex flex-col items-center justify-center text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+          <h4 className="font-bold text-gray-900 dark:text-white mb-2">No Doctor Linked</h4>
+          <p className="text-sm text-gray-500">You must click "Link with Doctor" on your dashboard and enter their Clinic ID before you can use the chat.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed bottom-6 right-6 w-96 h-[450px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden transition-all duration-200 animate-in fade-in slide-in-from-bottom-4">
       
       <div className="bg-blue-600 dark:bg-blue-700 p-4 flex justify-between items-center text-white">
         <div className="flex items-center gap-2">
-          <div className="bg-white/20 p-1.5 rounded-full">
-            <User className="h-4 w-4" />
-          </div>
+          <div className="bg-white/20 p-1.5 rounded-full"><User className="h-4 w-4" /></div>
           <div>
             <h3 className="font-semibold text-sm">{doctorName || "Your Doctor"}</h3>
             <span className="text-[10px] bg-green-400 text-gray-900 px-1.5 py-0.5 rounded-full font-bold">Online</span>
