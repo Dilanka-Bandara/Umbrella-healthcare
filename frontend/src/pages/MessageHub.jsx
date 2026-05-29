@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, User, Search, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, User, Search, Loader2, MessageCircle } from 'lucide-react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
