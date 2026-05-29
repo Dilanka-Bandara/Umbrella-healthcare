@@ -14,16 +14,25 @@ const ConnectDoctor = () => {
     setIsLoading(true);
 
     try {
-      // Simulate network delay for the UI
-      setTimeout(() => {
-        setIsLoading(false);
-        setSuccess(true);
-        setTimeout(() => navigate('/dashboard'), 2000);
-      }, 1500);
+      // 1. Get the patient's security token
+      const token = localStorage.getItem('token');
+
+      // 2. Send the actual connection request to the backend
+      const response = await axios.post('http://localhost:5000/api/patients/connect-doctor', 
+        { doctor_clinic_id: doctorId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // 3. SECURE THE DOCTOR ID: Save the real doctor's UUID so the ChatPopup knows who to talk to!
+      localStorage.setItem('connectedDoctorId', response.data.doctor_id);
+
+      setIsLoading(false);
+      setSuccess(true);
+      setTimeout(() => navigate('/dashboard'), 2000);
 
     } catch (error) {
       console.error(error);
-      alert('Failed to connect to Doctor. Please check the ID.');
+      alert(error.response?.data?.message || 'Failed to connect to Doctor. Please check the ID.');
       setIsLoading(false);
     }
   };

@@ -231,7 +231,8 @@ const PatientDashboard = () => {
       <ChatPopup 
         isOpen={isChatOpen} 
         onClose={() => setIsChatOpen(false)} 
-        doctorName="Dr. Sarah Jenkins" 
+        doctorId={connectedDoctorId} 
+        doctorName="Your Connected Doctor" 
       />
     </div>
   );
