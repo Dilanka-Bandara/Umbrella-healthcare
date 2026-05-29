@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Pill, ShoppingCart, User, Menu, Sun, Moon, LogOut, LayoutDashboard } from 'lucide-react';
+import { Pill, ShoppingCart, User, Menu, Sun, Moon, LogOut, LayoutDashboard, Bell } from 'lucide-react';
 
 const Navbar = () => {
   const navigate = useNavigate();
   const [isDark, setIsDark] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   
-  // Read the user from local storage
   const userStr = localStorage.getItem('user');
   const currentUser = userStr ? JSON.parse(userStr) : null;
 
@@ -30,14 +30,11 @@ const Navbar = () => {
   };
 
   const handleLogout = () => {
-    // Clear the security keys from memory
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    // Refresh the page to reset the state
     window.location.href = '/'; 
   };
 
-  // Smart routing for the Dashboard button
   const goToDashboard = () => {
     if (currentUser?.role === 'doctor') {
       navigate('/doctor-dashboard');
@@ -71,9 +68,43 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center gap-5">
-            <button onClick={toggleTheme} className="p-2 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <button onClick={toggleTheme} className="p-2 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors">
               {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </button>
+
+            {/* NEW: Universal Notification Bell */}
+            {currentUser && (
+              <div className="relative">
+                <button 
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="relative p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
+                >
+                  <Bell className="h-5 w-5" />
+                  <span className="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center border-2 border-white dark:border-gray-900">
+                    3
+                  </span>
+                </button>
+
+                {/* Dropdown Menu */}
+                {showNotifications && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                    <div className="p-4 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
+                      <h3 className="font-bold text-sm text-gray-900 dark:text-white">Notifications</h3>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      <div className="p-4 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">Order Shipped! 📦</p>
+                        <p className="text-xs text-gray-500 mt-1">Your pharmacy order #42d08 is on the way.</p>
+                      </div>
+                      <div className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">New Message 💬</p>
+                        <p className="text-xs text-gray-500 mt-1">Dr. Jenkins sent you a new message.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <Link to="/cart" className="relative p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors">
               <ShoppingCart className="h-5 w-5" />
@@ -82,7 +113,6 @@ const Navbar = () => {
               </span>
             </Link>
             
-            {/* DYNAMIC AUTH SECTION */}
             {currentUser ? (
               <div className="hidden md:flex items-center gap-3">
                 <button 
