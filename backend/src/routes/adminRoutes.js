@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { approveDoctor } = require('../controllers/adminController');
+const { getPendingDoctors, approveDoctor } = require('../controllers/adminController');
+const { protect } = require('../middlewares/authMiddleware'); 
 
-// Import our Security Guards
-const { protect, authorizeRole } = require('../middlewares/authMiddleware');
+// GET /api/admin/pending-doctors
+router.get('/pending-doctors', protect, getPendingDoctors);
 
-// The route: Only accessible if logged in (protect) AND role is admin (authorizeRole)
-router.put('/approve-doctor/:id', protect, authorizeRole('admin'), approveDoctor);
+// PUT /api/admin/approve-doctor/:id
+router.put('/approve-doctor/:id', protect, approveDoctor);
 
 module.exports = router;

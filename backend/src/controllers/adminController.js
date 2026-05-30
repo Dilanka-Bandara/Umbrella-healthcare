@@ -1,44 +1,53 @@
 const db = require('../config/db');
 
-// @desc    Approve a pending doctor account
+// @desc    Get all doctors waiting for approval
+// @route   GET /api/admin/pending-doctors
+const getPendingDoctors = async (req, res) => {
+  try {
+    const query = await db.query(
+      `SELECT id, full_name, email, phone_number, created_at 
+       FROM users 
+       WHERE role = 'doctor' AND is_verified = false 
+       ORDER BY created_at ASC`
+    );
+    res.status(200).json(query.rows);
+  } catch (error) {
+    console.error('Error fetching pending doctors:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Approve a doctor and generate their Clinic ID
 // @route   PUT /api/admin/approve-doctor/:id
 const approveDoctor = async (req, res) => {
-    try {
-        // Grab the doctor's ID from the URL (e.g., /approve-doctor/12345)
-        const doctorId = req.params.id;
+  try {
+    const { id } = req.params;
+    
+    // Generate a unique 4-digit Clinic ID (e.g., DOC-4928)
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    const clinicId = `DOC-${randomNum}`;
 
-        // 1. Check if the user exists and is actually a doctor
-        const userResult = await db.query('SELECT * FROM users WHERE id = $1 AND role = $2', [doctorId, 'doctor']);
-        
-        if (userResult.rows.length === 0) {
-            return res.status(404).json({ message: 'Doctor not found.' });
-        }
+    const updateQuery = await db.query(
+      `UPDATE users 
+       SET is_verified = true, clinic_id = $1 
+       WHERE id = $2 AND role = 'doctor' 
+       RETURNING id, full_name, clinic_id, email`,
+      [clinicId, id]
+    );
 
-        const doctor = userResult.rows[0];
-
-        if (doctor.is_verified) {
-            return res.status(400).json({ message: 'This doctor is already verified.' });
-        }
-
-        // 2. Update the verification status to true
-        const updatedDoctor = await db.query(
-            `UPDATE users SET is_verified = true, updated_at = NOW() 
-             WHERE id = $1 RETURNING id, full_name, email, is_verified`,
-            [doctorId]
-        );
-
-        // 3. Send success response
-        res.status(200).json({
-            message: 'Doctor approved successfully! They can now log in.',
-            doctor: updatedDoctor.rows[0]
-        });
-
-    } catch (error) {
-        console.error('Error in approveDoctor:', error.message);
-        res.status(500).json({ message: 'Server Error' });
+    if (updateQuery.rows.length === 0) {
+      return res.status(404).json({ message: 'Doctor not found or already verified.' });
     }
+
+    res.status(200).json({ 
+      message: 'Doctor officially approved!', 
+      doctor: updateQuery.rows[0] 
+    });
+
+  } catch (error) {
+    console.error('Error approving doctor:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
 };
 
-module.exports = {
-    approveDoctor
-};
+module.exports = { getPendingDoctors, approveDoctor };
