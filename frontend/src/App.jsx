@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import ConnectDoctor from './pages/ConnectDoctor';
 import DoctorDashboard from './pages/DoctorDashboard';
 import MessageHub from './pages/MessageHub';
+import AdminDashboard from './pages/AdminDashboard';
 
 // --- THE SMART HOME COMPONENT ---
 const Home = () => {
@@ -88,6 +89,7 @@ function App() {
             <Route path="/connect" element={<ConnectDoctor />} />
             <Route path="/message-hub" element={<MessageHub />} />
             <Route path="/encounter/:targetId" element={<EncounterRoom />} />
+            <Route path="/admin" element={<AdminDashboard />} />
           </Routes>
         </main>
         
