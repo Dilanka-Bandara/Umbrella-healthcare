@@ -12,6 +12,7 @@ const DoctorDashboard = () => {
   const clinicId = currentUser.clinic_id || "DOC-8392";
 
   useEffect(() => {
+    // In the future, this will be an axios.get() to your database
     const mockPatients = [
       { id: 1, full_name: "John Doe", connected_on: "2026-05-28", status: "Active" }
     ];
@@ -46,7 +47,7 @@ const DoctorDashboard = () => {
         {/* Left 2 Columns: Main Workspace */}
         <div className="lg:col-span-2 space-y-6">
           
-          {/* NEW: Virtual Waiting Room */}
+          {/* Virtual Waiting Room */}
           <div className="bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl p-6 shadow-sm relative overflow-hidden">
             <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
             <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
@@ -65,7 +66,12 @@ const DoctorDashboard = () => {
                   <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">Ready for Video Consultation</p>
                 </div>
               </div>
-              <button className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm">
+              
+              {/* WIRED UP: Takes Doctor to the Encounter Room */}
+              <button 
+                onClick={() => navigate('/encounter/2')} 
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm"
+              >
                 Join Call
               </button>
             </div>
@@ -95,7 +101,12 @@ const DoctorDashboard = () => {
                       <p className="text-xs text-gray-500">Connected on {patient.connected_on}</p>
                     </div>
                   </div>
-                  <button className="text-emerald-600 dark:text-emerald-400 text-sm font-semibold flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  
+                  {/* WIRED UP: Takes Doctor to the Clinical Workspace for this specific patient */}
+                  <button 
+                    onClick={() => navigate(`/encounter/${patient.id}`)}
+                    className="text-emerald-600 dark:text-emerald-400 text-sm font-semibold flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
                     Open Patient Chart <ArrowRight className="h-4 w-4" />
                   </button>
                 </div>
@@ -107,8 +118,8 @@ const DoctorDashboard = () => {
         {/* Right 1 Column: Quick Stats & Actions */}
         <div className="space-y-6">
           
-          {/* NEW: Dedicated Message Hub Button */}
-          <button className="w-full flex items-center justify-between p-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg shadow-blue-500/30 transition-all group">
+          {/* Message Hub Button */}
+          <button onClick={() => navigate('/message-hub')} className="w-full flex items-center justify-between p-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg shadow-blue-500/30 transition-all group">
             <div className="flex items-center gap-3">
               <MessageCircle className="h-6 w-6" />
               <div className="text-left">
@@ -116,11 +127,9 @@ const DoctorDashboard = () => {
                 <p className="text-xs text-blue-100">Respond to patient queries</p>
               </div>
             </div>
-            {/* The Messenger-style unread counter! */}
             <div className="bg-red-500 text-white font-black text-xs h-6 w-6 flex items-center justify-center rounded-full group-hover:scale-110 transition-transform shadow-md">
               5
             </div>
-            <button onClick={() => navigate('/message-hub')} className="w-full flex items-center justify-between p-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg shadow-blue-500/30 transition-all group"></button>
           </button>
 
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
