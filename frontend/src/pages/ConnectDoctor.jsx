@@ -28,7 +28,7 @@ const ConnectDoctor = () => {
 
       setIsLoading(false);
       setSuccess(true);
-      setTimeout(() => navigate('/dashboard'), 2000);
+      setTimeout(() => navigate(`/encounter/${response.data.doctor_id}`), 2000);
 
     } catch (error) {
       console.error(error);

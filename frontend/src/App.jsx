@@ -87,6 +87,7 @@ function App() {
             <Route path="/shop" element={<Shop />} />
             <Route path="/connect" element={<ConnectDoctor />} />
             <Route path="/message-hub" element={<MessageHub />} />
+            <Route path="/encounter/:targetId" element={<EncounterRoom />} />
           </Routes>
         </main>
         
