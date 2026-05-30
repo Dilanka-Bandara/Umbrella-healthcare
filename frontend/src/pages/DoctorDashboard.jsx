@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Calendar, QrCode, ClipboardList, Search, User, ArrowRight, MessageCircle, Video } from 'lucide-react';
+import { Users, Calendar, QrCode, ClipboardList, Search, User, ArrowRight, MessageCircle, Video, Loader2 } from 'lucide-react';
+import axios from 'axios';
 
 const DoctorDashboard = () => {
   const navigate = useNavigate();
@@ -8,17 +9,37 @@ const DoctorDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   
   const userStr = localStorage.getItem('user');
-  const currentUser = userStr ? JSON.parse(userStr) : { full_name: "Doctor" };
-  const clinicId = currentUser.clinic_id || "DOC-8392";
+  const token = localStorage.getItem('token');
+  const currentUser = userStr ? JSON.parse(userStr) : null;
+  const clinicId = currentUser?.clinic_id || "PENDING";
+
+  // 🚨 FETCH REAL DATA: Pull the connected patients from PostgreSQL
+  const fetchPatients = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/api/doctors/my-patients', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPatients(response.data);
+    } catch (error) {
+      console.error("Error fetching patients:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // In the future, this will be an axios.get() to your database
-    const mockPatients = [
-      { id: 1, full_name: "John Doe", connected_on: "2026-05-28", status: "Active" }
-    ];
-    setPatients(mockPatients);
-    setIsLoading(false);
-  }, []);
+    if (currentUser && token) {
+      fetchPatients();
+      
+      // Auto-refresh the waiting room every 10 seconds to create that "Instant" feel
+      const interval = setInterval(() => {
+        fetchPatients();
+      }, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [currentUser?.id, token]);
+
+  if (!currentUser) return null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 text-gray-900 dark:text-gray-100 transition-colors duration-200">
@@ -27,7 +48,7 @@ const DoctorDashboard = () => {
       <div className="flex flex-col lg:flex-row gap-6 mb-8">
         <div className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-500 rounded-2xl p-6 md:p-8 text-white shadow-md">
           <h1 className="text-3xl font-bold mb-2">Dr. {currentUser.full_name}</h1>
-          <p className="text-emerald-50 max-w-xl">Welcome to your digital clinic. Manage your patients, write prescriptions, and handle telehealth appointments here.</p>
+          <p className="text-emerald-50 max-w-xl">Welcome to your digital clinic. Manage your patients, write smart prescriptions, and handle telehealth appointments securely.</p>
         </div>
         
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm flex items-center gap-6 min-w-[300px]">
@@ -47,37 +68,39 @@ const DoctorDashboard = () => {
         {/* Left 2 Columns: Main Workspace */}
         <div className="lg:col-span-2 space-y-6">
           
-          {/* Virtual Waiting Room */}
+          {/* Virtual Waiting Room (Shows the most recently connected patient) */}
           <div className="bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl p-6 shadow-sm relative overflow-hidden">
             <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
             <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
               <Video className="text-emerald-600 h-5 w-5 animate-pulse" /> Virtual Waiting Room
             </h2>
-            <div className="flex items-center justify-between p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-800/30">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <div className="h-10 w-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                    <User className="h-5 w-5 text-gray-500" />
+            
+            {isLoading ? (
+              <div className="flex items-center justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-emerald-500" /></div>
+            ) : patients.length > 0 ? (
+              <div className="flex items-center justify-between p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-800/30">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="h-10 w-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                      <User className="h-5 w-5 text-gray-500" />
+                    </div>
+                    <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
                   </div>
-                  <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
+                  <div>
+                    <p className="font-bold text-sm">{patients[0].full_name}</p>
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">Ready for Consultation</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-bold text-sm">Jane Smith <span className="text-xs font-normal text-gray-500 ml-2">Waiting for 4 mins</span></p>
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">Ready for Video Consultation</p>
-                </div>
+                <button onClick={() => navigate(`/encounter/${patients[0].id}`)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm">
+                  Start Session
+                </button>
               </div>
-              
-              {/* WIRED UP: Takes Doctor to the Encounter Room */}
-              <button 
-                onClick={() => navigate('/encounter/2')} 
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm"
-              >
-                Join Call
-              </button>
-            </div>
+            ) : (
+              <p className="text-sm text-gray-500 py-4 text-center">No patients in the waiting room.</p>
+            )}
           </div>
 
-          {/* Patient Roster */}
+          {/* Connected Patient Roster */}
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <h2 className="text-xl font-bold flex items-center gap-2">
@@ -98,15 +121,10 @@ const DoctorDashboard = () => {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900 dark:text-white">{patient.full_name}</h3>
-                      <p className="text-xs text-gray-500">Connected on {patient.connected_on}</p>
+                      <p className="text-xs text-gray-500">ID: #{patient.id} • Connected: {new Date(patient.connected_on).toLocaleDateString()}</p>
                     </div>
                   </div>
-                  
-                  {/* WIRED UP: Takes Doctor to the Clinical Workspace for this specific patient */}
-                  <button 
-                    onClick={() => navigate(`/encounter/${patient.id}`)}
-                    className="text-emerald-600 dark:text-emerald-400 text-sm font-semibold flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
+                  <button onClick={() => navigate(`/encounter/${patient.id}`)} className="text-emerald-600 dark:text-emerald-400 text-sm font-semibold flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     Open Patient Chart <ArrowRight className="h-4 w-4" />
                   </button>
                 </div>
@@ -117,8 +135,6 @@ const DoctorDashboard = () => {
 
         {/* Right 1 Column: Quick Stats & Actions */}
         <div className="space-y-6">
-          
-          {/* Message Hub Button */}
           <button onClick={() => navigate('/message-hub')} className="w-full flex items-center justify-between p-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg shadow-blue-500/30 transition-all group">
             <div className="flex items-center gap-3">
               <MessageCircle className="h-6 w-6" />
@@ -128,29 +144,9 @@ const DoctorDashboard = () => {
               </div>
             </div>
             <div className="bg-red-500 text-white font-black text-xs h-6 w-6 flex items-center justify-center rounded-full group-hover:scale-110 transition-transform shadow-md">
-              5
+              !
             </div>
           </button>
-
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
-            <h2 className="text-lg font-bold mb-4">Daily Overview</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800/50">
-                <div className="flex items-center gap-3 text-emerald-700 dark:text-emerald-400">
-                  <Calendar className="h-5 w-5" />
-                  <span className="font-semibold">Appointments</span>
-                </div>
-                <span className="text-xl font-black text-emerald-700 dark:text-emerald-400">3</span>
-              </div>
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
-                <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
-                  <ClipboardList className="h-5 w-5" />
-                  <span className="font-semibold">Prescriptions</span>
-                </div>
-                <span className="text-xl font-black text-gray-700 dark:text-gray-300">0</span>
-              </div>
-            </div>
-          </div>
         </div>
 
       </div>

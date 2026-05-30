@@ -10,6 +10,7 @@ import ConnectDoctor from './pages/ConnectDoctor';
 import DoctorDashboard from './pages/DoctorDashboard';
 import MessageHub from './pages/MessageHub';
 import AdminDashboard from './pages/AdminDashboard';
+import EncounterRoom from './pages/EncounterRoom';
 
 // --- THE SMART HOME COMPONENT ---
 const Home = () => {
