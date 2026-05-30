@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QrCode, Keyboard, ArrowLeft, Camera, CheckCircle2, Loader2 } from 'lucide-react';
+import axios from 'axios';
 
 const ConnectDoctor = () => {
   const navigate = useNavigate();
