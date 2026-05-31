@@ -1,75 +1,72 @@
 const db = require('../config/db');
 
-// @desc    Add a new medicine to the inventory (Admin Only)
-// @route   POST /api/pharmacy/medicines
-const addMedicine = async (req, res) => {
+// @desc    Get all pending prescriptions for a patient's cart
+// @route   GET /api/pharmacy/my-cart
+const getMyCart = async (req, res) => {
     try {
-        const { name, dosage, type, price, stock_quantity } = req.body;
-        
-        // Defensive check: Make sure they didn't leave important fields blank
-        if (!name || !dosage || !price) {
-            return res.status(400).json({ message: 'Name, dosage, and price are required.' });
-        }
+        const patient_id = req.user.id;
 
-        const newMedicine = await db.query(
-            `INSERT INTO medicines (name, dosage, type, price, stock_quantity)
-             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-            [name, dosage, type, price, stock_quantity || 0]
+        // Fetch prescriptions linked to this patient that haven't been ordered yet
+        const cartItems = await db.query(
+            `SELECT cp.id as prescription_id, cp.instructions, cp.status, 
+                    m.id as medicine_id, m.name as medicine_name, m.price, m.type,
+                    c.created_at as prescribed_on, u.full_name as doctor_name
+             FROM consultation_prescriptions cp
+             JOIN medicines m ON cp.medicine_id = m.id
+             JOIN consultations c ON cp.consultation_id = c.id
+             JOIN users u ON c.doctor_id = u.id
+             WHERE c.patient_id = $1 AND cp.status = 'pending'
+             ORDER BY c.created_at DESC`,
+            [patient_id]
         );
 
-        res.status(201).json({
-            message: 'Medicine added to digital shelf successfully!',
-            medicine: newMedicine.rows[0]
-        });
-
+        res.status(200).json(cartItems.rows);
     } catch (error) {
-        console.error('Error adding medicine:', error.message);
-        res.status(500).json({ message: 'Server Error adding medicine to inventory.' });
+        console.error('Error fetching cart:', error.message);
+        res.status(500).json({ message: 'Server Error fetching pharmacy cart.' });
     }
 };
 
-// @desc    Get the list of medicines with Pagination and Search
-// @route   GET /api/pharmacy/medicines?page=1&limit=20&search=para
-const getAllMedicines = async (req, res) => {
+// @desc    Process Checkout and mark prescriptions as ordered
+// @route   POST /api/pharmacy/checkout
+const processCheckout = async (req, res) => {
     try {
-        // 1. Get the query parameters from the URL (or set safe defaults)
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 20; // 20 items per page
-        const search = req.query.search || ''; // Default to empty string if no search
+        const patient_id = req.user.id;
+        const { prescription_ids, total_paid, delivery_address } = req.body;
 
-        // 2. Calculate the "Offset" (e.g., if on Page 2, skip the first 20 items)
-        const offset = (page - 1) * limit;
+        if (!prescription_ids || prescription_ids.length === 0) {
+            return res.status(400).json({ message: 'No items in cart.' });
+        }
 
-        // 3. Search the database using ILIKE (case-insensitive search) and Pagination
-        const queryText = `
-            SELECT * FROM medicines 
-            WHERE name ILIKE $1 
-            ORDER BY name ASC 
-            LIMIT $2 OFFSET $3
-        `;
-        // The % signs mean "find this text anywhere inside the name"
-        const values = [`%${search}%`, limit, offset];
+        // 1. Create the main Order record
+        const newOrder = await db.query(
+            `INSERT INTO orders (patient_id, total_amount, delivery_address, status) 
+             VALUES ($1, $2, $3, 'Processing') RETURNING id`,
+            [patient_id, total_paid, delivery_address]
+        );
+        const order_id = newOrder.rows[0].id;
 
-        const medicines = await db.query(queryText, values);
+        // 2. Loop through and update prescriptions to 'ordered' and link to order
+        for (const pid of prescription_ids) {
+            await db.query(
+                `UPDATE consultation_prescriptions 
+                 SET status = 'ordered' 
+                 WHERE id = $1`,
+                [pid]
+            );
+            
+            // Note: In a full DB, you'd insert into an `order_items` table here too
+        }
 
-        // 4. Get the total count of matching items so the frontend can build page numbers (1, 2, 3...)
-        const countQuery = await db.query('SELECT COUNT(*) FROM medicines WHERE name ILIKE $1', [`%${search}%`]);
-        const totalItems = parseInt(countQuery.rows[0].count);
-        const totalPages = Math.ceil(totalItems / limit);
-
-        // 5. Send back the structured data
-        res.status(200).json({
-            current_page: page,
-            total_pages: totalPages,
-            total_items: totalItems,
-            items_on_this_page: medicines.rows.length,
-            medicines: medicines.rows
+        res.status(200).json({ 
+            message: 'Payment successful! Medications are being prepared.',
+            order_id: order_id
         });
 
     } catch (error) {
-        console.error('Error fetching medicines:', error.message);
-        res.status(500).json({ message: 'Server Error fetching inventory.' });
+        console.error('Error during checkout:', error.message);
+        res.status(500).json({ message: 'Checkout processing failed.' });
     }
 };
 
-module.exports = { addMedicine, getAllMedicines };
+module.exports = { getMyCart, processCheckout };

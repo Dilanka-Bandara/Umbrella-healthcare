@@ -11,6 +11,7 @@ import DoctorDashboard from './pages/DoctorDashboard';
 import MessageHub from './pages/MessageHub';
 import AdminDashboard from './pages/AdminDashboard';
 import EncounterRoom from './pages/EncounterRoom';
+import PharmacyCart from './pages/PharmacyCart';
 
 // --- THE SMART HOME COMPONENT ---
 const Home = () => {
@@ -91,6 +92,7 @@ function App() {
             <Route path="/message-hub" element={<MessageHub />} />
             <Route path="/encounter/:targetId" element={<EncounterRoom />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/pharmacy" element={<PharmacyCart />} />
           </Routes>
         </main>
         
