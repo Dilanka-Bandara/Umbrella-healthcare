@@ -1,18 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-// 🚨 BUG FIX 1: Added CheckCircle and MessageCircle to the imports!
-import { Users, Calendar, QrCode, ClipboardList, Search, User, ArrowRight, Video, Loader2, Database, Upload, FileText, X, History, CheckCircle, MessageCircle } from 'lucide-react';
+// 🚨 IMPORTED NEW ICONS: Filter, ChevronLeft, ChevronRight
+import { Users, Calendar, QrCode, ClipboardList, Search, User, ArrowRight, Video, Loader2, Database, Upload, FileText, X, History, CheckCircle, MessageCircle, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import axios from 'axios';
 
 const DoctorDashboard = () => {
   const navigate = useNavigate();
   
   // --- States ---
-  const [activeTab, setActiveTab] = useState('queue'); // 'queue' or 'database'
+  const [activeTab, setActiveTab] = useState('queue'); 
   const [livePatients, setLivePatients] = useState([]);
   const [allPatients, setAllPatients] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // 🚨 NEW: Enterprise Pagination & Filtering States
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5); // Default to 5 rows per page
 
   // --- Vault Modal States ---
   const [selectedVaultPatient, setSelectedVaultPatient] = useState(null);
@@ -30,10 +35,8 @@ const DoctorDashboard = () => {
   const fetchData = async () => {
     try {
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      // Fetch Live Queue
       const liveRes = await axios.get('http://localhost:5000/api/doctors/my-patients', config);
       setLivePatients(liveRes.data);
-      // Fetch All Patients (Database)
       const allRes = await axios.get('http://localhost:5000/api/doctors/all-patients', config);
       setAllPatients(allRes.data);
     } catch (error) {
@@ -46,20 +49,23 @@ const DoctorDashboard = () => {
   useEffect(() => {
     if (currentUser && token) {
       fetchData();
-      const interval = setInterval(fetchData, 10000); // Auto-refresh live queue
+      const interval = setInterval(fetchData, 10000); 
       return () => clearInterval(interval);
     }
   }, [currentUser?.id, token]);
+
+  // 🚨 NEW: Auto-reset to Page 1 if the user changes search/filters
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, dateRange, itemsPerPage]);
 
   // --- Open Patient Vault ---
   const openVault = async (patient) => {
     setSelectedVaultPatient(patient);
     try {
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      // Get History
       const histRes = await axios.get(`http://localhost:5000/api/consultations/history/${patient.id}`, config);
       setVaultHistory(histRes.data);
-      // Get Documents
       const docRes = await axios.get(`http://localhost:5000/api/doctors/patient/${patient.id}/documents`, config);
       setVaultDocuments(docRes.data);
     } catch (error) {
@@ -78,7 +84,6 @@ const DoctorDashboard = () => {
 
     try {
       const config = { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } };
-      
       const uploadRes = await axios.post('http://localhost:5000/api/upload', formData, config);
       const fileUrl = uploadRes.data.file_url;
 
@@ -99,8 +104,33 @@ const DoctorDashboard = () => {
 
   if (!currentUser) return null;
 
-  // Added optional chaining (?.) just in case a user doesn't have a name yet
-  const filteredDatabase = allPatients.filter(p => p.full_name?.toLowerCase().includes(searchTerm.toLowerCase()));
+  // 🚨 NEW: Enterprise Data Filtering Engine
+  const filteredDatabase = allPatients.filter(p => {
+    // 1. Text Search
+    const matchesSearch = p.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          p.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // 2. Date Range Search
+    let matchesDate = true;
+    if (dateRange.start || dateRange.end) {
+      const visitDate = new Date(p.visit_date);
+      if (dateRange.start) {
+        matchesDate = matchesDate && visitDate >= new Date(dateRange.start);
+      }
+      if (dateRange.end) {
+        // Set end date to end of day to make it inclusive
+        const endDate = new Date(dateRange.end);
+        endDate.setHours(23, 59, 59, 999);
+        matchesDate = matchesDate && visitDate <= endDate;
+      }
+    }
+    return matchesSearch && matchesDate;
+  });
+
+  // 🚨 NEW: Enterprise Pagination Engine
+  const totalPages = Math.ceil(filteredDatabase.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedDatabase = filteredDatabase.slice(startIndex, startIndex + itemsPerPage);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 text-gray-900 dark:text-gray-100 transition-colors duration-200 relative">
@@ -127,18 +157,11 @@ const DoctorDashboard = () => {
         {/* Main Workspace */}
         <div className="lg:col-span-2 space-y-6">
           
-          {/* TAB NAVIGATION */}
           <div className="flex gap-4 mb-2">
-            <button 
-              onClick={() => setActiveTab('queue')} 
-              className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-bold transition-all shadow-sm ${activeTab === 'queue' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-500 hover:bg-gray-50'}`}
-            >
+            <button onClick={() => setActiveTab('queue')} className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-bold transition-all shadow-sm ${activeTab === 'queue' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-500 hover:bg-gray-50'}`}>
               <Video className="h-5 w-5" /> Live Session Queue
             </button>
-            <button 
-              onClick={() => setActiveTab('database')} 
-              className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-bold transition-all shadow-sm ${activeTab === 'database' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-500 hover:bg-gray-50'}`}
-            >
+            <button onClick={() => setActiveTab('database')} className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-bold transition-all shadow-sm ${activeTab === 'database' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-500 hover:bg-gray-50'}`}>
               <Database className="h-5 w-5" /> Patient Database (EHR)
             </button>
           </div>
@@ -184,38 +207,111 @@ const DoctorDashboard = () => {
             </div>
           )}
 
-          {/* TAB 2: PATIENT DATABASE */}
+          {/* TAB 2: PATIENT DATABASE (Chronological Encounter Log) */}
           {activeTab === 'database' && (
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm min-h-[400px]">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-gray-100 dark:border-gray-800 pb-6">
-                <h2 className="text-xl font-bold flex items-center gap-2">
-                  <Database className="text-blue-600 h-5 w-5" /> Master Patient Index
-                </h2>
-                <div className="relative">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                  <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search records..." className="pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64" />
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm min-h-[400px] flex flex-col">
+              
+              {/* 🚨 NEW: Advanced Filtering Header */}
+              <div className="flex flex-col gap-4 mb-6 border-b border-gray-100 dark:border-gray-800 pb-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-bold flex items-center gap-2">
+                    <Database className="text-blue-600 h-5 w-5" /> Master Encounter Log
+                  </h2>
+                </div>
+                
+                {/* Search & Date Controls */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                    <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search name or email..." className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  
+                  <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1">
+                    <Filter className="h-4 w-4 text-gray-400" />
+                    <input type="date" value={dateRange.start} onChange={(e) => setDateRange({...dateRange, start: e.target.value})} className="bg-transparent text-sm outline-none text-gray-600 dark:text-gray-300" title="Start Date"/>
+                    <span className="text-gray-400">-</span>
+                    <input type="date" value={dateRange.end} onChange={(e) => setDateRange({...dateRange, end: e.target.value})} className="bg-transparent text-sm outline-none text-gray-600 dark:text-gray-300" title="End Date"/>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                {filteredDatabase.map((patient) => (
-                  <div key={patient.id} className="flex items-center justify-between p-4 rounded-xl border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group">
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center text-gray-500">
-                        <User className="h-5 w-5" />
+              {/* Data Grid List */}
+              <div className="space-y-3 flex-1">
+                {paginatedDatabase.map((encounter, idx) => {
+                  const uniqueKey = encounter.consultation_id || `${encounter.id}-${idx}`;
+                  const patientId = encounter.patient_id || encounter.id;
+                  
+                  return (
+                    <div key={uniqueKey} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-gray-100 dark:border-gray-800 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors group gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center text-gray-500 shrink-0">
+                          <User className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            {encounter.full_name}
+                            {encounter.visit_date && (
+                              <span className="text-[10px] font-bold uppercase bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 px-2 py-1 rounded-md whitespace-nowrap">
+                                Visit: {new Date(encounter.visit_date).toLocaleDateString()}
+                              </span>
+                            )}
+                          </h3>
+                          <p className="text-xs text-gray-500 mt-1 truncate">{encounter.email} | Patient ID: #{patientId.substring(0,8)}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-bold text-gray-900 dark:text-white">{patient.full_name}</h3>
-                        <p className="text-xs text-gray-500">{patient.email} | {patient.phone_number}</p>
-                      </div>
+                      
+                      <button 
+                        onClick={() => openVault({ id: patientId, full_name: encounter.full_name })} 
+                        className="text-blue-600 dark:text-blue-400 text-sm font-bold flex items-center justify-center gap-2 bg-blue-50 dark:bg-blue-900/20 px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors whitespace-nowrap"
+                      >
+                        Open Full EHR Vault
+                      </button>
                     </div>
-                    <button onClick={() => openVault(patient)} className="text-blue-600 dark:text-blue-400 text-sm font-bold flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors">
-                      Open EHR Vault
-                    </button>
-                  </div>
-                ))}
-                {filteredDatabase.length === 0 && <p className="text-center text-gray-500 py-10">No patients found in database.</p>}
+                  );
+                })}
+                {filteredDatabase.length === 0 && <p className="text-center text-gray-500 py-10">No encounters found matching your filters.</p>}
               </div>
+
+              {/* 🚨 NEW: Pagination Footer */}
+              {filteredDatabase.length > 0 && (
+                <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                    <span>Rows per page:</span>
+                    <select 
+                      value={itemsPerPage} 
+                      onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                      className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-1 outline-none cursor-pointer"
+                    >
+                      <option value={5}>5</option>
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                    </select>
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredDatabase.length)} of {filteredDatabase.length}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button 
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                        disabled={currentPage === 1}
+                        className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-gray-600 dark:text-gray-300"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+                      <button 
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+                        disabled={currentPage === totalPages}
+                        className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-gray-600 dark:text-gray-300"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -224,7 +320,6 @@ const DoctorDashboard = () => {
         {/* Right Column: Stats */}
         <div className="space-y-6">
           
-          {/* 🚨 BUG FIX 2: Restored the Message Hub Chat Button! */}
           <button onClick={() => navigate('/message-hub')} className="w-full flex items-center justify-between p-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg shadow-blue-500/30 transition-all group">
             <div className="flex items-center gap-3">
               <MessageCircle className="h-6 w-6" />
@@ -251,7 +346,7 @@ const DoctorDashboard = () => {
               <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800/50">
                 <div className="flex items-center gap-3 text-blue-700 dark:text-blue-400">
                   <Database className="h-5 w-5" />
-                  <span className="font-semibold">Total Patients</span>
+                  <span className="font-semibold">Total Encounters</span>
                 </div>
                 <span className="text-xl font-black text-blue-700 dark:text-blue-400">{allPatients.length}</span>
               </div>
@@ -260,7 +355,7 @@ const DoctorDashboard = () => {
         </div>
       </div>
 
-      {/* THE PATIENT VAULT MODAL (History & Cloud Uploads) */}
+      {/* THE PATIENT VAULT MODAL (UNTOUCHED) */}
       {selectedVaultPatient && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-900 w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
@@ -287,7 +382,7 @@ const DoctorDashboard = () => {
               {/* Left: Consultation History */}
               <div className="flex-1 space-y-4">
                 <h3 className="font-bold text-lg flex items-center gap-2 text-slate-800 dark:text-slate-200">
-                  <History className="h-5 w-5 text-blue-500" /> Consultation History
+                  <History className="h-5 w-5 text-blue-500" /> Master Consultation History
                 </h3>
                 {vaultHistory.length === 0 ? (
                   <p className="text-slate-500 text-sm bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">No past consultations found.</p>
@@ -301,7 +396,6 @@ const DoctorDashboard = () => {
                       <p className="text-sm mb-2"><span className="font-bold text-slate-500">Diagnosis:</span> {record.diagnosis}</p>
                       <p className="text-sm"><span className="font-bold text-slate-500">Notes:</span> {record.symptoms_notes}</p>
                       
-                      {/* 🚨 NEW: Show Prescriptions in the Doctor's Vault History! */}
                       {record.prescriptions && record.prescriptions.length > 0 && (
                         <div className="mt-3 bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-slate-700">
                           <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">Prescriptions Issued:</p>
@@ -324,7 +418,6 @@ const DoctorDashboard = () => {
                   <FileText className="h-5 w-5 text-emerald-500" /> Scans & Documents
                 </h3>
                 
-                {/* CLOUDINARY UPLOAD BUTTON */}
                 <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,.pdf" />
                 <button 
                   onClick={() => fileInputRef.current.click()} 

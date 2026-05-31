@@ -18,21 +18,29 @@ const getActivePatients = async (req, res) => {
     }
 };
 
-// @desc    Get ALL historical patients (The Vault)
+// @desc    Get ALL historical patient encounters (Chronological Encounter Log)
+// @route   GET /api/doctors/all-patients
+// @desc    Get ALL historical patient encounters (Chronological Encounter Log)
 // @route   GET /api/doctors/all-patients
 const getAllPatients = async (req, res) => {
     try {
         const doctor_id = req.user.id;
-        // Fetch distinct patients who have either an active or completed connection
+        
+        // 🚨 UPGRADE: Fetch individual consultations instead of just unique patients.
+        // This ensures if a patient visits twice, they appear twice, sorted by the exact visit date!
         const query = await db.query(
-            `SELECT DISTINCT u.id, u.full_name, u.email, u.phone_number
-             FROM users u
-             JOIN patient_doctor_connections pdc ON u.id = pdc.patient_id
-             WHERE pdc.doctor_id = $1`,
+            `SELECT c.id as consultation_id, c.consultation_date as visit_date, 
+                    u.id as patient_id, u.full_name, u.email, u.phone_number
+             FROM consultations c
+             JOIN users u ON c.patient_id = u.id
+             WHERE c.doctor_id = $1
+             ORDER BY c.consultation_date DESC`,
             [doctor_id]
         );
+        
         res.status(200).json(query.rows);
     } catch (error) {
+        console.error('Error fetching patient database:', error);
         res.status(500).json({ message: 'Server Error fetching patient database.' });
     }
 };
