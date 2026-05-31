@@ -50,18 +50,25 @@ const saveConsultation = async (req, res) => {
         );
         const consultation_id = newConsultation.rows[0].id;
 
-        // 2. Save attachments if they exist
+        // 2. Save attachments and sync to the Master Vault
         if (file_urls && file_urls.length > 0) {
             for (const url of file_urls) {
+                // Attach to specific session
                 await db.query(
                     `INSERT INTO consultation_attachments (consultation_id, file_url, file_type) 
                      VALUES ($1, $2, $3)`,
                     [consultation_id, url, 'medical_document']
                 );
+                // 🚨 NEW: Sync to the Doctor's Global Vault so it is never lost!
+                await db.query(
+                    `INSERT INTO patient_documents (doctor_id, patient_id, file_url, file_name) 
+                     VALUES ($1, $2, $3, $4)`,
+                    [doctor_id, patient_id, url, 'Session Document']
+                );
             }
         }
 
-        // 3. 🚨 NEW: Mark the live session as 'completed' so it leaves the Doctor's Dashboard!
+        // 3. Mark the live session as 'completed'
         await db.query(
             `UPDATE patient_doctor_connections 
              SET status = 'completed' 
@@ -69,7 +76,6 @@ const saveConsultation = async (req, res) => {
             [doctor_id, patient_id]
         );
 
-        // Return the exact consultation_id so React can attach prescriptions to it
         res.status(201).json({ 
             message: 'Consultation saved successfully and session ended!',
             consultation_id: consultation_id
@@ -160,20 +166,37 @@ const prescribeMedicine = async (req, res) => {
     }
 };
 
-// @desc    Fetch Patient History
+// @desc    Fetch Patient History for the Doctor Vault
 // @route   GET /api/consultations/history/:patientId
 const getPatientHistory = async (req, res) => {
     try {
         const patient_id = req.params.patientId;
+        
         const history = await db.query(
-            `SELECT c.*, u.full_name as doctor_name 
+            `SELECT c.id, c.created_at, c.diagnosis, c.symptoms_notes, u.full_name as doctor_name 
              FROM consultations c 
              JOIN users u ON c.doctor_id = u.id 
              WHERE c.patient_id = $1 ORDER BY c.created_at DESC`,
             [patient_id]
         );
-        res.status(200).json(history.rows);
+
+        const consultations = history.rows;
+
+        // 🚨 NEW: Fetch the prescriptions for each session so the doctor can read past medicines!
+        for (let consult of consultations) {
+            const rxQuery = await db.query(
+                `SELECT cp.instructions, m.name as medicine_name
+                 FROM consultation_prescriptions cp
+                 JOIN medicines m ON cp.medicine_id = m.id
+                 WHERE cp.consultation_id = $1`,
+                [consult.id]
+            );
+            consult.prescriptions = rxQuery.rows;
+        }
+
+        res.status(200).json(consultations);
     } catch (error) {
+        console.error(error);
         res.status(500).json({ message: 'Server Error fetching history.' });
     }
 };

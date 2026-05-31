@@ -300,6 +300,19 @@ const DoctorDashboard = () => {
                       </div>
                       <p className="text-sm mb-2"><span className="font-bold text-slate-500">Diagnosis:</span> {record.diagnosis}</p>
                       <p className="text-sm"><span className="font-bold text-slate-500">Notes:</span> {record.symptoms_notes}</p>
+                      
+                      {/* 🚨 NEW: Show Prescriptions in the Doctor's Vault History! */}
+                      {record.prescriptions && record.prescriptions.length > 0 && (
+                        <div className="mt-3 bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-slate-700">
+                          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">Prescriptions Issued:</p>
+                          {record.prescriptions.map((rx, idx) => (
+                            <p key={idx} className="text-sm text-slate-700 dark:text-slate-300 font-medium flex items-center gap-2">
+                              <span className="h-1.5 w-1.5 bg-blue-500 rounded-full"></span> 
+                              {rx.medicine_name} <span className="text-xs text-slate-400 font-normal italic">({rx.instructions})</span>
+                            </p>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))
                 )}
