@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingBag, MessageSquare, User, FileText, QrCode, Activity, Pill, Clock, Loader2 } from 'lucide-react';
+import { ShoppingBag, MessageSquare, User, FileText, QrCode, Activity, Pill, Clock, Loader2, CheckCircle } from 'lucide-react';
 import axios from 'axios';
 import ChatPopup from '../components/ChatPopup';
 
@@ -79,6 +79,7 @@ const PatientDashboard = () => {
               <div className="space-y-6">
                 {medicalHistory.map((record) => (
                   <div key={record.id} className="bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
+                    
                     {/* Record Header */}
                     <div className="flex justify-between items-start mb-4">
                       <div>
@@ -99,6 +100,23 @@ const PatientDashboard = () => {
                       </p>
                     </div>
 
+                    {/* 🚨 NEW: Uploaded Documents Section */}
+                    {record.attachments && record.attachments.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                          <FileImage className="h-3 w-3" /> Doctor's Attached Documents
+                        </p>
+                        <div className="flex flex-wrap gap-3">
+                          {record.attachments.map((doc, idx) => (
+                            <a key={idx} href={doc.file_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 px-4 py-2 rounded-xl border border-emerald-100 dark:border-emerald-800/50 hover:bg-emerald-100 transition-colors shadow-sm">
+                              <FileText className="h-4 w-4" />
+                              <span className="text-sm font-bold">View Document {idx + 1}</span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Prescribed Medicines for this session */}
                     {record.prescriptions && record.prescriptions.length > 0 && (
                       <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -107,13 +125,17 @@ const PatientDashboard = () => {
                         </p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {record.prescriptions.map((rx, idx) => (
-                            <div key={idx} className="bg-white dark:bg-gray-900 border border-blue-100 dark:border-blue-900/50 p-3 rounded-xl flex gap-3">
+                            <div key={idx} className="bg-white dark:bg-gray-900 border border-blue-100 dark:border-blue-900/50 p-3 rounded-xl flex gap-3 relative overflow-hidden group">
+                              {/* Small status indicator */}
+                              <div className={`absolute top-0 right-0 px-2 py-0.5 rounded-bl-lg text-[9px] font-bold uppercase text-white ${rx.status === 'pending' ? 'bg-amber-500' : 'bg-green-500'}`}>
+                                {rx.status}
+                              </div>
                               <div className="bg-blue-50 dark:bg-blue-900/30 p-2 rounded-lg text-blue-600 dark:text-blue-400 self-start">
                                 <Pill className="h-4 w-4" />
                               </div>
-                              <div>
+                              <div className="pr-10">
                                 <p className="font-bold text-sm text-gray-900 dark:text-gray-100">{rx.medicine_name}</p>
-                                <p className="text-[11px] text-gray-500 mt-0.5">{rx.instructions}</p>
+                                <p className="text-[11px] text-gray-500 mt-0.5 italic">"{rx.instructions}"</p>
                               </div>
                             </div>
                           ))}
@@ -132,7 +154,6 @@ const PatientDashboard = () => {
           
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm flex flex-col items-center text-center">
             <div className="h-24 w-24 rounded-full mb-4 bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
-              {/* If you add Cloudinary profile pics later, render the <img> here */}
               <User className="h-10 w-10" />
             </div>
             <h2 className="text-xl font-bold">{currentUser.full_name}</h2>
