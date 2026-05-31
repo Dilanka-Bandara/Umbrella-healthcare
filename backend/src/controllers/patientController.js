@@ -24,15 +24,15 @@ const connectDoctor = async (req, res) => {
   }
 };
 
-// 🚨 UPGRADED: Fetch ALL doctors this patient is connected to (Their "Care Team")
+// Fetch ALL doctors this patient is connected to (Their "Care Team")
 const getMyDoctors = async (req, res) => {
   try {
     const patientId = req.user.id;
     const query = await db.query(
-      `SELECT u.id, u.full_name, u.clinic_id, pdc.created_at 
+      `SELECT DISTINCT u.id, u.full_name, u.clinic_id, pdc.created_at 
        FROM users u
        JOIN patient_doctor_connections pdc ON u.id = pdc.doctor_id
-       WHERE pdc.patient_id = $1 AND pdc.status = 'active'
+       WHERE pdc.patient_id = $1
        ORDER BY pdc.created_at DESC`,
       [patientId]
     );
@@ -44,4 +44,40 @@ const getMyDoctors = async (req, res) => {
   }
 };
 
-module.exports = { connectDoctor, getMyDoctors };
+// 🚨 NEW: Fetch the Patient's Medical History & Prescriptions
+const getMyHistory = async (req, res) => {
+  try {
+    const patientId = req.user.id;
+    
+    // 1. Get all consultations for this patient
+    const historyQuery = await db.query(
+      `SELECT c.id, c.created_at, c.diagnosis, c.symptoms_notes, u.full_name as doctor_name
+       FROM consultations c
+       JOIN users u ON c.doctor_id = u.id
+       WHERE c.patient_id = $1
+       ORDER BY c.created_at DESC`,
+      [patientId]
+    );
+
+    const consultations = historyQuery.rows;
+
+    // 2. Loop through and attach the specific medicines prescribed during each consultation
+    for (let consult of consultations) {
+      const rxQuery = await db.query(
+        `SELECT cp.instructions, cp.status, m.name as medicine_name
+         FROM consultation_prescriptions cp
+         JOIN medicines m ON cp.medicine_id = m.id
+         WHERE cp.consultation_id = $1`,
+        [consult.id]
+      );
+      consult.prescriptions = rxQuery.rows;
+    }
+
+    res.status(200).json(consultations);
+  } catch (error) {
+    console.error('Error fetching patient history:', error);
+    res.status(500).json({ message: 'Server error fetching medical history.' });
+  }
+};
+
+module.exports = { connectDoctor, getMyDoctors, getMyHistory };
