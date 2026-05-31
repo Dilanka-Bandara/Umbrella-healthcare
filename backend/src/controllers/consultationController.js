@@ -61,9 +61,17 @@ const saveConsultation = async (req, res) => {
             }
         }
 
+        // 3. 🚨 NEW: Mark the live session as 'completed' so it leaves the Doctor's Dashboard!
+        await db.query(
+            `UPDATE patient_doctor_connections 
+             SET status = 'completed' 
+             WHERE doctor_id = $1 AND patient_id = $2 AND status = 'active'`,
+            [doctor_id, patient_id]
+        );
+
         // Return the exact consultation_id so React can attach prescriptions to it
         res.status(201).json({ 
-            message: 'Consultation saved successfully to the database!',
+            message: 'Consultation saved successfully and session ended!',
             consultation_id: consultation_id
         });
     } catch (error) {
