@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Pill, PenTool, CheckCircle, MessageSquare, History, Search, Plus, Trash2, ShieldAlert, Edit3 } from 'lucide-react';
+import { ArrowLeft, User, Pill, PenTool, CheckCircle, MessageSquare, History, Search, Plus, Trash2, ShieldAlert, Edit3, Upload, Loader2, FileImage } from 'lucide-react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
@@ -24,6 +24,11 @@ const EncounterRoom = () => {
   const [diagnosis, setDiagnosis] = useState('');
   const [editingId, setEditingId] = useState(null);
 
+  // 🚨 NEW: LIVE SESSION UPLOAD STATES
+  const [sessionFiles, setSessionFiles] = useState([]); // Array to hold uploaded Cloudinary URLs
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
   // --- HTML5 SMART PEN CANVAS ---
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -35,7 +40,6 @@ const EncounterRoom = () => {
     context.moveTo(offsetX, offsetY);
     setIsDrawing(true);
   };
-  
   const draw = ({ nativeEvent }) => {
     if (!isDrawing) return;
     const { offsetX, offsetY } = nativeEvent;
@@ -43,32 +47,50 @@ const EncounterRoom = () => {
     context.lineTo(offsetX, offsetY);
     context.stroke();
   };
-  
   const stopDrawing = () => {
     if (!isDrawing) return;
     const context = canvasRef.current.getContext('2d');
     context.closePath();
     setIsDrawing(false);
   };
-  
   const clearCanvas = () => {
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
     context.clearRect(0, 0, canvas.width, canvas.height);
   };
 
-  // --- 🚨 ADVANCED eRx CART SYSTEM ---
+  // 🚨 NEW: LIVE UPLOAD FUNCTION
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('document', file); 
+
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } };
+      
+      // Upload to Cloudinary immediately
+      const uploadRes = await axios.post('http://localhost:5000/api/upload', formData, config);
+      const fileUrl = uploadRes.data.file_url;
+
+      // Add to our temporary array for this session
+      setSessionFiles(prev => [...prev, { name: file.name, url: fileUrl }]);
+      alert("File uploaded successfully and attached to this session!");
+    } catch (error) {
+      console.error("Upload error:", error);
+      alert("Failed to upload document.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // --- ADVANCED eRx CART SYSTEM ---
   const [rxCart, setRxCart] = useState([]);
   const [medSearch, setMedSearch] = useState('');
-  const [rxForm, setRxForm] = useState({
-    amount: 1,      
-    frequency: '2x',   
-    timing: 'Morning & Evening', 
-    meal: 'After Meal',          
-    durationDays: 7 
-  });
+  const [rxForm, setRxForm] = useState({ amount: 1, frequency: '2x', timing: 'Morning & Evening', meal: 'After Meal', durationDays: 7 });
 
-  // 🚨 FIXED BUG: Using proper UUID format to satisfy PostgreSQL strict types
   const pharmacyDatabase = [
     { id: '11111111-1111-1111-1111-111111111111', name: 'Amoxicillin 500mg (Antibiotic)', type: 'Capsule' },
     { id: '22222222-2222-2222-2222-222222222222', name: 'Lisinopril 10mg (Blood Pressure)', type: 'Tablet' },
@@ -78,41 +100,33 @@ const EncounterRoom = () => {
 
   const filteredMeds = medSearch ? pharmacyDatabase.filter(m => m.name.toLowerCase().includes(medSearch.toLowerCase())) : [];
   const selectedMed = pharmacyDatabase.find(m => m.name === medSearch);
-  
-  // Calculate total units mathematically
   const freqNumber = parseInt(rxForm.frequency.replace('x', ''));
   const totalQuantity = rxForm.amount * freqNumber * rxForm.durationDays;
 
   const handleAddPrescription = () => {
-    if (!selectedMed) return alert("Please select a valid medicine from the search list.");
-    
+    if (!selectedMed) return alert("Please select a valid medicine.");
     const newRx = {
       medicine_id: selectedMed.id,
       medicine_name: selectedMed.name,
       total_quantity: totalQuantity,
       instructions: `Take ${rxForm.amount} ${selectedMed.type}(s), ${rxForm.frequency} daily (${rxForm.timing}) - ${rxForm.meal} for ${rxForm.durationDays} days.`
     };
-
     setRxCart([...rxCart, newRx]);
     setMedSearch(''); 
   };
 
-  const removeRx = (index) => {
-    setRxCart(rxCart.filter((_, i) => i !== index));
-  };
+  const removeRx = (index) => setRxCart(rxCart.filter((_, i) => i !== index));
 
   // --- Real-time Chat States ---
   const [message, setMessage] = useState('');
   const [chatLog, setChatLog] = useState([]);
   const messagesEndRef = useRef(null);
 
-  // --- Boot Sequence: Join Room & Fetch History ---
   useEffect(() => {
     if (!currentUser || !targetId) return;
 
     const roomId = [currentUser.id, targetId].sort().join('_');
     socket.emit('join_room', roomId);
-    
     socket.on('receive_message', (newMsg) => {
       setChatLog((prev) => [...prev, newMsg]);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
@@ -123,7 +137,6 @@ const EncounterRoom = () => {
         headers: { Authorization: `Bearer ${token}` }
       }).then(res => setPatientHistory(res.data)).catch(console.error);
     }
-
     return () => socket.off('receive_message');
   }, [currentUser?.id, targetId, isDoctor, token]);
 
@@ -135,7 +148,6 @@ const EncounterRoom = () => {
     setMessage('');
   };
 
-  // --- EDIT HISTORY LOGIC ---
   const handleEditHistory = (record) => {
     setEditingId(record.id);
     setSymptoms(record.symptoms_notes);
@@ -144,7 +156,6 @@ const EncounterRoom = () => {
     alert("Record loaded into editor. Make your changes and click Save.");
   };
 
-  // --- 🚨 THE ACTUAL DATABASE SAVE LOOP ---
   const handleFinalizeConsultation = async () => {
     if (!symptoms || !diagnosis) return alert("Please fill out symptoms and diagnosis.");
     setIsSaving(true);
@@ -152,28 +163,23 @@ const EncounterRoom = () => {
     try {
       const config = { headers: { Authorization: `Bearer ${token}` } };
       
-      // OPTIONAL: Convert canvas to image string (to upload to Cloudinary in backend)
-      const canvasImage = canvasRef.current ? canvasRef.current.toDataURL() : null;
-
       if (editingId) {
-        // Edit existing record
         await axios.put(`http://localhost:5000/api/consultations/record/${editingId}`, {
           symptoms_notes: symptoms, diagnosis: diagnosis
         }, config);
         alert("Medical Record updated successfully!");
       } else {
-        // Create new record
+        // Create new record AND attach the uploaded Cloudinary files!
+        const fileUrlsOnly = sessionFiles.map(file => file.url);
+        
         const recordRes = await axios.post('http://localhost:5000/api/consultations/record', {
-          patient_id: targetId, symptoms_notes: symptoms, diagnosis: diagnosis, file_urls: [] 
+          patient_id: targetId, symptoms_notes: symptoms, diagnosis: diagnosis, file_urls: fileUrlsOnly 
         }, config);
         
         const consultId = recordRes.data.consultation_id;
 
-        // Loop and save prescriptions
         if (rxCart.length > 0) {
           for (const rx of rxCart) {
-            // NOTE: Ensure your backend medicine_id exists, or this will fail! 
-            // We use UUID formats above, but they must exist in your actual DB.
             try {
                await axios.post(`http://localhost:5000/api/consultations/record/${consultId}/prescribe`, {
                  medicine_id: rx.medicine_id,
@@ -186,7 +192,6 @@ const EncounterRoom = () => {
         }
         alert(`Session Complete! Saved to History & ${rxCart.length} Prescriptions queued.`);
       }
-      
       navigate('/doctor-dashboard');
     } catch (error) {
       console.error(error);
@@ -196,9 +201,6 @@ const EncounterRoom = () => {
     }
   };
 
-  // ============================================================================
-  // UI RENDER: DOCTOR'S CLINICAL WORKSPACE
-  // ============================================================================
   if (isDoctor) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
@@ -217,10 +219,7 @@ const EncounterRoom = () => {
         </div>
 
         <div className="flex-1 flex w-full mx-auto p-4 gap-4 h-[calc(100vh-76px)]">
-          
-          {/* LEFT/CENTER AREA */}
           <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-            
             <div className="flex gap-2 bg-white dark:bg-gray-900 p-2 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm">
               <button onClick={() => setActiveTab('notes')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${activeTab === 'notes' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'text-gray-500 hover:bg-gray-50'}`}>
                 <PenTool className="h-5 w-5" /> {editingId ? 'Editing Past Record' : 'Current Visit Notes'}
@@ -230,7 +229,7 @@ const EncounterRoom = () => {
               </button>
             </div>
 
-            {/* TAB: Current Notes & Canvas */}
+            {/* TAB: Current Notes & Tools */}
             {activeTab === 'notes' && (
               <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
                 <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm">
@@ -246,24 +245,49 @@ const EncounterRoom = () => {
                   </div>
                 </div>
 
-                {/* 🚨 THE SMART PEN CANVAS */}
-                <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 shadow-sm flex flex-col">
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                      <PenTool className="h-4 w-4" /> Smart Pen Drawing Board
-                    </label>
-                    <button onClick={clearCanvas} className="text-xs text-red-500 font-bold hover:underline">Clear Canvas</button>
+                {/* 🚨 NEW: LIVE UPLOAD AND CANVAS SECTION */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Smart Pen */}
+                  <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 shadow-sm flex flex-col">
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                        <PenTool className="h-4 w-4" /> Smart Pen Drawing
+                      </label>
+                      <button onClick={clearCanvas} className="text-xs text-red-500 font-bold hover:underline">Clear Canvas</button>
+                    </div>
+                    <canvas 
+                      ref={canvasRef} onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
+                      className="w-full h-40 bg-gray-50 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl cursor-crosshair touch-none"
+                      width={400} height={160}
+                    />
                   </div>
-                  <canvas 
-                    ref={canvasRef}
-                    onMouseDown={startDrawing}
-                    onMouseMove={draw}
-                    onMouseUp={stopDrawing}
-                    onMouseLeave={stopDrawing}
-                    className="w-full h-40 bg-gray-50 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl cursor-crosshair touch-none"
-                    width={800} height={160}
-                  />
-                  <p className="text-[10px] text-gray-400 mt-2 text-center">Use your mouse or stylus to draw diagrams or upload files to Cloudinary.</p>
+
+                  {/* Cloudinary Live Upload */}
+                  <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 shadow-sm flex flex-col justify-between">
+                    <label className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-2">
+                      <Upload className="h-4 w-4" /> Attach Documents & Scans
+                    </label>
+                    <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,.pdf" />
+                    
+                    <button 
+                      onClick={() => fileInputRef.current.click()} disabled={isUploading}
+                      className="flex-1 border-2 border-dashed border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/10 hover:bg-emerald-100 text-emerald-700 p-4 rounded-xl flex flex-col items-center justify-center transition-colors disabled:opacity-50"
+                    >
+                      {isUploading ? <Loader2 className="h-6 w-6 animate-spin mb-1" /> : <Upload className="h-6 w-6 mb-1" />}
+                      <span className="text-sm font-bold">{isUploading ? 'Uploading...' : 'Upload File'}</span>
+                    </button>
+
+                    {/* Show attached files */}
+                    {sessionFiles.length > 0 && (
+                      <div className="mt-2 space-y-1 overflow-y-auto max-h-20">
+                        {sessionFiles.map((f, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-xs bg-gray-50 dark:bg-gray-800 p-2 rounded-md">
+                            <FileImage className="h-3 w-3 text-emerald-500" /> <span className="truncate">{f.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -275,7 +299,6 @@ const EncounterRoom = () => {
                   <ShieldAlert className="h-5 w-5" />
                   <span className="font-bold text-sm">HIPAA Secure: Patient Medical Vault</span>
                 </div>
-                
                 {patientHistory.length === 0 ? (
                   <p className="text-center text-gray-500 py-10">No previous medical history found.</p>
                 ) : (
@@ -316,7 +339,7 @@ const EncounterRoom = () => {
             </div>
           </div>
 
-          {/* RIGHT: UPDATED e-Prescribing (eRx) Panel */}
+          {/* RIGHT: e-Prescribing (eRx) Panel */}
           <div className="w-[450px] bg-white dark:bg-gray-900 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 flex flex-col shadow-sm overflow-hidden">
             <div className="p-5 bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-100 dark:border-emerald-800/50">
               <h3 className="font-bold text-lg flex items-center gap-2 text-emerald-700 dark:text-emerald-400"><Pill className="h-5 w-5"/> Smart e-Prescribe</h3>
@@ -324,7 +347,6 @@ const EncounterRoom = () => {
             </div>
             
             <div className="p-5 space-y-5 flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
-              
               {/* Search Medicine */}
               <div className="relative">
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Search Medicine</label>
@@ -343,10 +365,10 @@ const EncounterRoom = () => {
                 )}
               </div>
 
-              {/* 🚨 UPDATED STRUCTURED DOSAGE SETTINGS */}
+              {/* Dosage Settings */}
               <div className="grid grid-cols-2 gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Amount (Pills)</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Amount</label>
                   <select value={rxForm.amount} onChange={(e) => setRxForm({...rxForm, amount: parseInt(e.target.value)})} className="w-full p-2 bg-gray-50 rounded-lg text-sm outline-none">
                     <option value="1">1 Unit</option>
                     <option value="2">2 Units</option>
@@ -387,7 +409,6 @@ const EncounterRoom = () => {
                 </div>
               </div>
 
-              {/* Auto Calculation Output */}
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex justify-between items-center">
                 <div>
                   <p className="text-xs font-bold text-blue-800 uppercase">Total System Allowance</p>
@@ -401,7 +422,6 @@ const EncounterRoom = () => {
                 <Plus className="h-5 w-5" /> Queue Prescription
               </button>
 
-              {/* The Prescription Cart */}
               {rxCart.length > 0 && (
                 <div className="pt-4 border-t border-gray-200">
                   <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Queued Prescriptions ({rxCart.length})</h4>
@@ -419,7 +439,6 @@ const EncounterRoom = () => {
                   </div>
                 </div>
               )}
-
             </div>
           </div>
         </div>
@@ -427,11 +446,11 @@ const EncounterRoom = () => {
     );
   }
 
-  // PATIENT VIEW
+  // PATIENT VIEW REMAINS EXACTLY THE SAME...
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-4xl bg-white rounded-3xl shadow-xl overflow-hidden flex h-[700px]">
-        <div className="w-1/3 bg-blue-600 text-white p-8 flex flex-col justify-between">
+      <div className="w-full max-w-4xl bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col md:flex-row h-[700px]">
+        <div className="w-full md:w-1/3 bg-blue-600 text-white p-8 flex flex-col justify-between">
           <div>
             <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2 text-blue-200 hover:text-white mb-12 text-sm font-semibold">
               <ArrowLeft className="h-4 w-4" /> Exit Waiting Room
@@ -443,7 +462,7 @@ const EncounterRoom = () => {
             <div className="flex items-center gap-3"><span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span> <span className="text-sm font-medium">Consultation in progress...</span></div>
           </div>
         </div>
-        <div className="w-2/3 flex flex-col bg-gray-50">
+        <div className="w-full md:w-2/3 flex flex-col bg-gray-50">
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
              {chatLog.map((msg, idx) => (
                 <div key={idx} className={`flex ${msg.sender_id === currentUser.id ? 'justify-end' : 'justify-start'}`}>
