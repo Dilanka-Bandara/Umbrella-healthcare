@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Calendar, QrCode, ClipboardList, Search, User, ArrowRight, Video, Loader2, Database, Upload, FileText, X, History } from 'lucide-react';
+// 🚨 BUG FIX 1: Added CheckCircle and MessageCircle to the imports!
+import { Users, Calendar, QrCode, ClipboardList, Search, User, ArrowRight, Video, Loader2, Database, Upload, FileText, X, History, CheckCircle, MessageCircle } from 'lucide-react';
 import axios from 'axios';
 
 const DoctorDashboard = () => {
@@ -73,23 +74,21 @@ const DoctorDashboard = () => {
 
     setIsUploading(true);
     const formData = new FormData();
-    formData.append('document', file); // Must match your uploadController Multer config
+    formData.append('document', file); 
 
     try {
       const config = { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } };
       
-      // 1. Upload to Cloudinary
       const uploadRes = await axios.post('http://localhost:5000/api/upload', formData, config);
       const fileUrl = uploadRes.data.file_url;
 
-      // 2. Save the URL to the Patient's Database Vault
       await axios.post(`http://localhost:5000/api/doctors/patient/${selectedVaultPatient.id}/document`, {
         file_url: fileUrl,
         file_name: file.name
       }, { headers: { Authorization: `Bearer ${token}` } });
 
       alert("Document uploaded securely to patient vault!");
-      openVault(selectedVaultPatient); // Refresh vault data
+      openVault(selectedVaultPatient); 
     } catch (error) {
       console.error("Upload error:", error);
       alert("Failed to upload document.");
@@ -100,7 +99,8 @@ const DoctorDashboard = () => {
 
   if (!currentUser) return null;
 
-  const filteredDatabase = allPatients.filter(p => p.full_name.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Added optional chaining (?.) just in case a user doesn't have a name yet
+  const filteredDatabase = allPatients.filter(p => p.full_name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 text-gray-900 dark:text-gray-100 transition-colors duration-200 relative">
@@ -223,6 +223,21 @@ const DoctorDashboard = () => {
 
         {/* Right Column: Stats */}
         <div className="space-y-6">
+          
+          {/* 🚨 BUG FIX 2: Restored the Message Hub Chat Button! */}
+          <button onClick={() => navigate('/message-hub')} className="w-full flex items-center justify-between p-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg shadow-blue-500/30 transition-all group">
+            <div className="flex items-center gap-3">
+              <MessageCircle className="h-6 w-6" />
+              <div className="text-left">
+                <p className="font-bold">Message Hub</p>
+                <p className="text-xs text-blue-100">Respond to patient queries</p>
+              </div>
+            </div>
+            <div className="bg-red-500 text-white font-black text-xs h-6 w-6 flex items-center justify-center rounded-full group-hover:scale-110 transition-transform shadow-md">
+              !
+            </div>
+          </button>
+
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
             <h2 className="text-lg font-bold mb-4">Practice Overview</h2>
             <div className="space-y-4">
@@ -245,7 +260,7 @@ const DoctorDashboard = () => {
         </div>
       </div>
 
-      {/* 🚨 THE PATIENT VAULT MODAL (History & Cloud Uploads) */}
+      {/* THE PATIENT VAULT MODAL (History & Cloud Uploads) */}
       {selectedVaultPatient && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-900 w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
@@ -296,7 +311,7 @@ const DoctorDashboard = () => {
                   <FileText className="h-5 w-5 text-emerald-500" /> Scans & Documents
                 </h3>
                 
-                {/* 🚨 CLOUDINARY UPLOAD BUTTON */}
+                {/* CLOUDINARY UPLOAD BUTTON */}
                 <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,.pdf" />
                 <button 
                   onClick={() => fileInputRef.current.click()} 
