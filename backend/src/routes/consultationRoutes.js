@@ -1,15 +1,12 @@
 const express = require('express');
 const router = express.Router();
-
-const { connectPatient, saveConsultation, updateConsultation, prescribeMedicine, getPatientHistory } = require('../controllers/consultationController');
+const { getMyPatients, getPatientDirectory } = require('../controllers/doctorController');
 const { protect, authorizeRole } = require('../middlewares/authMiddleware');
 
-router.post('/connect', protect, authorizeRole('doctor'), connectPatient);
-router.post('/record', protect, authorizeRole('doctor'), saveConsultation);
-router.put('/record/:id', protect, authorizeRole('doctor'), updateConsultation);
-router.post('/record/:id/prescribe', protect, authorizeRole('doctor'), prescribeMedicine);
+// Route 1: Get active waiting room patients
+router.get('/my-patients', protect, authorizeRole('doctor'), getMyPatients);
 
-// 🚨 NEW: Fetch history route
-router.get('/history/:patientId', protect, authorizeRole('doctor'), getPatientHistory);
+// Route 2: Get permanent historical patient directory
+router.get('/directory', protect, authorizeRole('doctor'), getPatientDirectory);
 
 module.exports = router;
