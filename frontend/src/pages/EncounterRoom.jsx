@@ -24,8 +24,8 @@ const EncounterRoom = () => {
   const [diagnosis, setDiagnosis] = useState('');
   const [editingId, setEditingId] = useState(null);
 
-  // 🚨 NEW: LIVE SESSION UPLOAD STATES
-  const [sessionFiles, setSessionFiles] = useState([]); // Array to hold uploaded Cloudinary URLs
+  // --- LIVE SESSION UPLOAD STATES ---
+  const [sessionFiles, setSessionFiles] = useState([]); 
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -59,7 +59,7 @@ const EncounterRoom = () => {
     context.clearRect(0, 0, canvas.width, canvas.height);
   };
 
-  // 🚨 NEW: LIVE UPLOAD FUNCTION
+  // --- LIVE UPLOAD FUNCTION ---
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -71,11 +71,9 @@ const EncounterRoom = () => {
     try {
       const config = { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } };
       
-      // Upload to Cloudinary immediately
       const uploadRes = await axios.post('http://localhost:5000/api/upload', formData, config);
       const fileUrl = uploadRes.data.file_url;
 
-      // Add to our temporary array for this session
       setSessionFiles(prev => [...prev, { name: file.name, url: fileUrl }]);
       alert("File uploaded successfully and attached to this session!");
     } catch (error) {
@@ -100,8 +98,10 @@ const EncounterRoom = () => {
 
   const filteredMeds = medSearch ? pharmacyDatabase.filter(m => m.name.toLowerCase().includes(medSearch.toLowerCase())) : [];
   const selectedMed = pharmacyDatabase.find(m => m.name === medSearch);
-  const freqNumber = parseInt(rxForm.frequency.replace('x', ''));
-  const totalQuantity = rxForm.amount * freqNumber * rxForm.durationDays;
+  
+  // Safe math calculation
+  const freqNumber = parseInt(rxForm.frequency?.replace('x', '') || 1);
+  const totalQuantity = (rxForm.amount || 1) * freqNumber * (rxForm.durationDays || 7);
 
   const handleAddPrescription = () => {
     if (!selectedMed) return alert("Please select a valid medicine.");
@@ -109,6 +109,7 @@ const EncounterRoom = () => {
       medicine_id: selectedMed.id,
       medicine_name: selectedMed.name,
       total_quantity: totalQuantity,
+      durationDays: rxForm.durationDays, // 🚨 Added for Backend Sync
       instructions: `Take ${rxForm.amount} ${selectedMed.type}(s), ${rxForm.frequency} daily (${rxForm.timing}) - ${rxForm.meal} for ${rxForm.durationDays} days.`
     };
     setRxCart([...rxCart, newRx]);
@@ -142,7 +143,7 @@ const EncounterRoom = () => {
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    if (!message.trim()) return;
+    if (!message.trim() || !currentUser) return;
     const roomId = [currentUser.id, targetId].sort().join('_');
     socket.emit('send_message', { sender_id: currentUser.id, receiver_id: targetId, message_text: message, room: roomId });
     setMessage('');
@@ -169,7 +170,6 @@ const EncounterRoom = () => {
         }, config);
         alert("Medical Record updated successfully!");
       } else {
-        // Create new record AND attach the uploaded Cloudinary files!
         const fileUrlsOnly = sessionFiles.map(file => file.url);
         
         const recordRes = await axios.post('http://localhost:5000/api/consultations/record', {
@@ -183,7 +183,9 @@ const EncounterRoom = () => {
             try {
                await axios.post(`http://localhost:5000/api/consultations/record/${consultId}/prescribe`, {
                  medicine_id: rx.medicine_id,
-                 instructions: rx.instructions
+                 instructions: rx.instructions,
+                 total_quantity: rx.total_quantity, // 🚨 Now synced with Pharmacy API
+                 duration_days: rx.durationDays     // 🚨 Used to set expiration date!
                }, config);
             } catch (err) {
                console.log("Prescription skip (mock ID not in DB): ", rx.medicine_name);
@@ -200,6 +202,8 @@ const EncounterRoom = () => {
       setIsSaving(false);
     }
   };
+
+  if (!currentUser) return null;
 
   if (isDoctor) {
     return (
@@ -245,7 +249,6 @@ const EncounterRoom = () => {
                   </div>
                 </div>
 
-                {/* 🚨 NEW: LIVE UPLOAD AND CANVAS SECTION */}
                 <div className="grid grid-cols-2 gap-4">
                   {/* Smart Pen */}
                   <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 shadow-sm flex flex-col">
@@ -277,7 +280,6 @@ const EncounterRoom = () => {
                       <span className="text-sm font-bold">{isUploading ? 'Uploading...' : 'Upload File'}</span>
                     </button>
 
-                    {/* Show attached files */}
                     {sessionFiles.length > 0 && (
                       <div className="mt-2 space-y-1 overflow-y-auto max-h-20">
                         {sessionFiles.map((f, idx) => (
@@ -326,11 +328,17 @@ const EncounterRoom = () => {
                 <MessageSquare className="h-4 w-4 text-emerald-600"/> Patient Communication
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                {chatLog.map((msg, idx) => (
-                  <div key={idx} className={`flex ${msg.sender_id === currentUser.id ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[75%] p-2.5 rounded-2xl text-sm ${msg.sender_id === currentUser.id ? 'bg-emerald-600 text-white rounded-br-none' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none'}`}>{msg.message_text}</div>
-                  </div>
-                ))}
+                {/* 🚨 BUG FIX: Optional Chaining on chatLog and msg variables prevents White Screen */}
+                {(chatLog || []).map((msg, idx) => {
+                  const isMe = msg?.sender_id === currentUser?.id;
+                  return (
+                    <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[75%] p-2.5 rounded-2xl text-sm ${isMe ? 'bg-emerald-600 text-white rounded-br-none' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none'}`}>
+                        {msg?.message_text}
+                      </div>
+                    </div>
+                  );
+                })}
                 <div ref={messagesEndRef} />
               </div>
               <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-200 dark:border-gray-800 flex gap-2">
@@ -446,7 +454,9 @@ const EncounterRoom = () => {
     );
   }
 
-  // PATIENT VIEW REMAINS EXACTLY THE SAME...
+  // =========================================================
+  // PATIENT VIEW 
+  // =========================================================
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-4xl bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col md:flex-row h-[700px]">
@@ -464,12 +474,18 @@ const EncounterRoom = () => {
         </div>
         <div className="w-full md:w-2/3 flex flex-col bg-gray-50">
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
-             {chatLog.map((msg, idx) => (
-                <div key={idx} className={`flex ${msg.sender_id === currentUser.id ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] p-4 rounded-2xl text-sm ${msg.sender_id === currentUser.id ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200'}`}>{msg.message_text}</div>
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
+             {/* 🚨 BUG FIX: Crash-proof mapping for patient chat too! */}
+             {(chatLog || []).map((msg, idx) => {
+                const isMe = msg?.sender_id === currentUser?.id;
+                return (
+                  <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[80%] p-4 rounded-2xl text-sm ${isMe ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200'}`}>
+                      {msg?.message_text}
+                    </div>
+                  </div>
+                );
+             })}
+             <div ref={messagesEndRef} />
           </div>
           <form onSubmit={handleSendMessage} className="p-4 bg-white border-t flex gap-3">
             <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Type a message..." className="flex-1 px-5 py-3 bg-gray-50 border rounded-xl outline-none" />

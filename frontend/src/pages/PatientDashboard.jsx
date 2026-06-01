@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingBag, MessageSquare, User, FileText, QrCode, Activity, Pill, Clock, Loader2, FileImage } from 'lucide-react';
+import { ShoppingBag, MessageSquare, User, FileText, QrCode, Activity, Pill, Clock, Loader2, FileImage, ArrowRight } from 'lucide-react';
 import axios from 'axios';
 import ChatPopup from '../components/ChatPopup';
 
@@ -23,7 +23,6 @@ const PatientDashboard = () => {
         const config = { headers: { Authorization: `Bearer ${token}` } };
         const teamRes = await axios.get('http://localhost:5000/api/patients/my-doctors', config);
         setMyCareTeam(teamRes.data);
-
         const historyRes = await axios.get('http://localhost:5000/api/patients/my-history', config);
         setMedicalHistory(historyRes.data);
       } catch (error) {
@@ -40,138 +39,124 @@ const PatientDashboard = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 text-gray-900 dark:text-gray-100 transition-colors duration-200">
       
-      <div className="mb-10 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl p-6 md:p-8 text-white shadow-md">
-        <h1 className="text-3xl font-bold mb-2">Welcome Back, {currentUser.full_name}</h1>
-        <p className="text-blue-50 max-w-xl">View your medical history, manage your active prescriptions, and connect with your Care Team all in one secure place.</p>
+      {/* Dynamic Welcome Banner */}
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Welcome, {currentUser.full_name.split(' ')[0]}!</h1>
+          <p className="text-gray-500 font-medium mt-1">Manage your active health services and medical records.</p>
+        </div>
+        <div className="h-14 w-14 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center border-2 border-blue-200">
+           <User className="h-7 w-7" />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-          
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm min-h-[400px]">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-gray-100 dark:border-gray-800 pb-4">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <Activity className="text-blue-600 h-5 w-5" /> My Medical History
-              </h2>
-            </div>
+      {/* 🚨 REDESIGN: MASSIVE CORE SERVICES HIGHLIGHT */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        
+        <button onClick={() => navigate('/connect')} className="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 rounded-3xl shadow-lg shadow-emerald-500/20 text-left relative overflow-hidden group hover:scale-[1.02] transition-transform">
+          <div className="absolute -right-6 -top-6 text-white/20 group-hover:scale-110 transition-transform"><QrCode className="h-32 w-32" /></div>
+          <div className="bg-white/20 w-fit p-3 rounded-2xl mb-4 backdrop-blur-sm"><QrCode className="h-6 w-6 text-white" /></div>
+          <h2 className="text-2xl font-bold text-white mb-1">Link with Doctor</h2>
+          <p className="text-emerald-50 text-sm">Enter a Clinic ID to start a live session.</p>
+          <div className="mt-6 flex items-center gap-2 text-white font-bold text-sm">Connect Now <ArrowRight className="h-4 w-4" /></div>
+        </button>
 
-            {isLoading ? (
-              <div className="flex justify-center py-10"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>
-            ) : medicalHistory.length === 0 ? (
-              <div className="text-center py-10 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700">
-                <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 font-semibold">No past medical records found.</p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {medicalHistory.map((record) => (
-                  <div key={record.id} className="bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
-                    
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="font-bold text-lg text-gray-900 dark:text-white">Diagnosis: {record.diagnosis}</h3>
-                        <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 mt-1">Attending: Dr. {record.doctor_name}</p>
-                      </div>
-                      <div className="bg-white dark:bg-gray-800 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-500 flex items-center gap-1.5">
-                        <Clock className="h-3 w-3" />
-                        {new Date(record.created_at).toLocaleDateString()}
-                      </div>
-                    </div>
-                    
-                    <div className="mb-4">
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Clinical Notes</p>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed bg-white dark:bg-gray-900 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
-                        {record.symptoms_notes}
-                      </p>
-                    </div>
+        <button onClick={() => navigate('/pharmacy')} className="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-3xl shadow-lg shadow-indigo-500/20 text-left relative overflow-hidden group hover:scale-[1.02] transition-transform">
+          <div className="absolute -right-6 -top-6 text-white/20 group-hover:scale-110 transition-transform"><ShoppingBag className="h-32 w-32" /></div>
+          <div className="bg-white/20 w-fit p-3 rounded-2xl mb-4 backdrop-blur-sm"><ShoppingBag className="h-6 w-6 text-white" /></div>
+          <h2 className="text-2xl font-bold text-white mb-1">E-Pharmacy Cart</h2>
+          <p className="text-indigo-50 text-sm">Buy pending prescriptions & check limits.</p>
+          <div className="mt-6 flex items-center gap-2 text-white font-bold text-sm">Open Store <ArrowRight className="h-4 w-4" /></div>
+        </button>
 
-                    {record.prescriptions && record.prescriptions.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                          <Pill className="h-3 w-3" /> Prescribed Medication
-                        </p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {record.prescriptions.map((rx, idx) => (
-                            <div key={idx} className="bg-white dark:bg-gray-900 border border-blue-100 dark:border-blue-900/50 p-3 rounded-xl flex gap-3 relative overflow-hidden group">
-                              <div className={`absolute top-0 right-0 px-2 py-0.5 rounded-bl-lg text-[9px] font-bold uppercase text-white ${rx.status === 'pending' ? 'bg-amber-500' : 'bg-green-500'}`}>
-                                {rx.status}
-                              </div>
-                              <div className="bg-blue-50 dark:bg-blue-900/30 p-2 rounded-lg text-blue-600 dark:text-blue-400 self-start">
-                                <Pill className="h-4 w-4" />
-                              </div>
-                              <div className="pr-10">
-                                <p className="font-bold text-sm text-gray-900 dark:text-white">{rx.medicine_name}</p>
-                                <p className="text-[11px] text-gray-500 mt-0.5 italic">"{rx.instructions}"</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+        <button onClick={() => setIsChatOpen(true)} className="bg-gradient-to-br from-cyan-500 to-blue-600 p-6 rounded-3xl shadow-lg shadow-cyan-500/20 text-left relative overflow-hidden group hover:scale-[1.02] transition-transform">
+          <div className="absolute -right-6 -top-6 text-white/20 group-hover:scale-110 transition-transform"><MessageSquare className="h-32 w-32" /></div>
+          <div className="bg-white/20 w-fit p-3 rounded-2xl mb-4 backdrop-blur-sm"><MessageSquare className="h-6 w-6 text-white" /></div>
+          <h2 className="text-2xl font-bold text-white mb-1">Telehealth Chat</h2>
+          <p className="text-cyan-50 text-sm">Message your assigned Care Team 24/7.</p>
+          <div className="mt-6 flex items-center gap-2 text-white font-bold text-sm">Open Chat <ArrowRight className="h-4 w-4" /></div>
+        </button>
 
-                    {/* THE CLOUDINARY DOCUMENTS DISPLAY */}
-                    {record.attachments && record.attachments.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                          <FileImage className="h-3 w-3" /> Doctor's Attached Documents
-                        </p>
-                        <div className="flex flex-wrap gap-3">
-                          {record.attachments.map((doc, idx) => (
-                            <a key={idx} href={doc.file_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 px-4 py-2 rounded-xl border border-emerald-100 dark:border-emerald-800/50 hover:bg-emerald-100 transition-colors shadow-sm">
-                              <FileText className="h-4 w-4" />
-                              <span className="text-sm font-bold">View Document {idx + 1}</span>
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+      </div>
 
+      {/* Main Content Area */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-8 shadow-sm min-h-[400px]">
+        <div className="flex items-center gap-3 mb-8 border-b border-gray-100 dark:border-gray-800 pb-4">
+          <Activity className="text-blue-600 h-6 w-6" />
+          <h2 className="text-2xl font-bold">My Medical History</h2>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-10"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>
+        ) : medicalHistory.length === 0 ? (
+          <div className="text-center py-16 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
+            <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500 font-semibold">Your medical vault is currently empty.</p>
+            <p className="text-sm text-gray-400 mt-1">Past diagnoses and prescriptions will securely appear here.</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {medicalHistory.map((record) => (
+              <div key={record.id} className="bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 hover:shadow-md transition-shadow">
+                
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <h3 className="font-bold text-xl text-gray-900 dark:text-white">{record.diagnosis}</h3>
+                    <p className="text-sm font-bold text-blue-600 dark:text-blue-400 mt-1 flex items-center gap-2">
+                       <User className="h-4 w-4"/> Dr. {record.doctor_name}
+                    </p>
                   </div>
-                ))}
+                  <div className="bg-white dark:bg-gray-800 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-bold text-gray-500 flex items-center gap-2 shadow-sm">
+                    <Clock className="h-4 w-4 text-blue-500" />
+                    {new Date(record.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+                
+                <div className="mb-6 bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-700">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Clinical Notes</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{record.symptoms_notes}</p>
+                </div>
+
+                {record.prescriptions && record.prescriptions.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1"><Pill className="h-3 w-3" /> Medication Log</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {record.prescriptions.map((rx, idx) => (
+                        <div key={idx} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-4 rounded-2xl flex gap-4 relative overflow-hidden">
+                          <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl text-[10px] font-black uppercase text-white tracking-widest ${rx.status === 'pending' || rx.status === 'partial' ? 'bg-amber-500' : 'bg-emerald-500'}`}>
+                            {rx.status}
+                          </div>
+                          <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-xl text-blue-600 dark:text-blue-400 self-start">
+                            <Pill className="h-5 w-5" />
+                          </div>
+                          <div className="pr-10">
+                            <p className="font-bold text-base text-gray-900 dark:text-white mb-1">{rx.medicine_name}</p>
+                            <p className="text-xs text-gray-500 italic bg-gray-50 dark:bg-gray-800 p-2 rounded-lg border border-gray-100 dark:border-gray-700">"{rx.instructions}"</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {record.attachments && record.attachments.length > 0 && (
+                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1"><FileImage className="h-3 w-3" /> Digital Scans & Files</p>
+                    <div className="flex flex-wrap gap-3">
+                      {record.attachments.map((doc, idx) => (
+                        <a key={idx} href={doc.file_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 px-5 py-3 rounded-xl border border-emerald-100 dark:border-emerald-800/50 hover:bg-emerald-100 transition-colors shadow-sm group">
+                          <div className="bg-white dark:bg-emerald-900 p-1.5 rounded-lg group-hover:scale-110 transition-transform"><FileText className="h-4 w-4" /></div>
+                          <span className="text-sm font-bold">View Document {idx + 1}</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
               </div>
-            )}
+            ))}
           </div>
-        </div>
-
-        <div className="space-y-6">
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm flex flex-col items-center text-center">
-            <div className="h-24 w-24 rounded-full mb-4 bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
-              <User className="h-10 w-10" />
-            </div>
-            <h2 className="text-xl font-bold">{currentUser.full_name}</h2>
-            <p className="text-sm text-gray-500 mb-4 font-mono">ID: #{currentUser.id.substring(0,8)}</p>
-            <button onClick={() => navigate('/profile')} className="w-full py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors font-semibold rounded-xl text-sm">Manage Account</button>
-          </div>
-
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
-            <h2 className="text-lg font-bold mb-4">Patient Services</h2>
-            <div className="grid grid-cols-1 gap-3">
-              <button onClick={() => navigate('/pharmacy')} className="flex items-center gap-3 p-3.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-left transition-all border border-blue-100 group">
-                <div className="bg-blue-600 text-white p-2 rounded-lg group-hover:scale-105 transition-transform"><ShoppingBag className="h-4 w-4" /></div>
-                <div>
-                  <div className="font-bold text-sm text-blue-900">E-Pharmacy Cart</div>
-                  <div className="text-xs text-blue-700/70">Order your prescriptions</div>
-                </div>
-              </button>
-
-              <button onClick={() => setIsChatOpen(true)} className="flex items-center gap-3 p-3.5 rounded-xl bg-gray-50 hover:bg-cyan-50 text-left transition-all group">
-                <div className="bg-cyan-500 text-white p-2 rounded-lg"><MessageSquare className="h-4 w-4" /></div>
-                <div>
-                  <div className="font-semibold text-sm group-hover:text-cyan-700 transition-colors">Telehealth Chat</div>
-                  <div className="text-xs text-gray-400">Message your Care Team</div>
-                </div>
-              </button>
-
-              <button onClick={() => navigate('/connect')} className="flex items-center gap-3 p-3.5 rounded-xl bg-gray-50 hover:bg-emerald-50 text-left transition-all group">
-                <div className="bg-emerald-600 text-white p-2 rounded-lg"><QrCode className="h-4 w-4" /></div>
-                <div>
-                  <div className="font-semibold text-sm group-hover:text-emerald-700 transition-colors">Link with Doctor</div>
-                  <div className="text-xs text-gray-400">Enter a Clinic ID</div>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
 
       <ChatPopup isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} careTeam={myCareTeam} />
