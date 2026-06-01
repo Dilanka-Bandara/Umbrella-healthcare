@@ -50,14 +50,20 @@ const updateConsultation = async (req, res) => {
     res.status(200).json({ message: 'Updated' });
 };
 
-// @desc    Prescribe medicine
+// @desc    Prescribe medicine WITH limits and expiration
 const prescribeMedicine = async (req, res) => {
     try {
         const consultation_id = req.params.id; 
-        const { medicine_id, instructions } = req.body;
+        const { medicine_id, instructions, total_quantity, duration_days } = req.body;
+
+        // Calculate Expiration Date
+        const validUntil = new Date();
+        validUntil.setDate(validUntil.getDate() + (parseInt(duration_days) || 7));
+
         const newPrescription = await db.query(
-            `INSERT INTO consultation_prescriptions (consultation_id, medicine_id, instructions) VALUES ($1, $2, $3) RETURNING *`,
-            [consultation_id, medicine_id, instructions]
+            `INSERT INTO consultation_prescriptions (consultation_id, medicine_id, instructions, total_quantity, purchased_quantity, valid_until, status) 
+             VALUES ($1, $2, $3, $4, 0, $5, 'pending') RETURNING *`,
+            [consultation_id, medicine_id, instructions, total_quantity || 1, validUntil]
         );
         res.status(201).json({ message: `Prescribed successfully!`, prescription: newPrescription.rows[0] });
     } catch (error) {
