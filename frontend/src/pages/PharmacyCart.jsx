@@ -7,9 +7,9 @@ const PharmacyCart = () => {
   const navigate = useNavigate();
   
   // States
-  const [vaultItems, setVaultItems] = useState([]); // All available prescriptions from DB
-  const [cart, setCart] = useState([]); // Items the user is buying TODAY
-  const [stagingQuantities, setStagingQuantities] = useState({}); // Amount selected before adding to cart
+  const [vaultItems, setVaultItems] = useState([]); 
+  const [cart, setCart] = useState([]); 
+  const [stagingQuantities, setStagingQuantities] = useState({}); 
   const [isLoading, setIsLoading] = useState(true);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -23,10 +23,13 @@ const PharmacyCart = () => {
           headers: { Authorization: `Bearer ${token}` }
         });
         
-        // Initialize staging quantities to 1 by default
+        // Safety check to prevent white screens
+        if (!Array.isArray(response.data)) return;
+
         const initialStaging = {};
         response.data.forEach(item => {
-            initialStaging[item.prescription_id] = 1; 
+            const maxAllowed = (item.total_quantity || 1) - (item.purchased_quantity || 0);
+            initialStaging[item.prescription_id] = maxAllowed > 0 ? 1 : 0; 
         });
         
         setStagingQuantities(initialStaging);
@@ -40,17 +43,13 @@ const PharmacyCart = () => {
     if (token) fetchVault();
   }, [token]);
 
-  // Handle changing quantity in the Vault before adding to cart
   const updateStagingQuantity = (id, newAmount, maxAllowed) => {
     if (newAmount < 1 || newAmount > maxAllowed) return;
     setStagingQuantities(prev => ({ ...prev, [id]: newAmount }));
   };
 
-  // Move item from Vault -> Cart
   const addToCart = (vaultItem) => {
-    const buyQty = stagingQuantities[vaultItem.prescription_id];
-    
-    // Check if already in cart, if so update quantity
+    const buyQty = stagingQuantities[vaultItem.prescription_id] || 1;
     const existingCartItem = cart.find(c => c.prescription_id === vaultItem.prescription_id);
     if (existingCartItem) {
       setCart(cart.map(c => c.prescription_id === vaultItem.prescription_id ? { ...c, buy_quantity: buyQty } : c));
@@ -59,13 +58,11 @@ const PharmacyCart = () => {
     }
   };
 
-  // Remove item from Cart (It remains in the Vault)
   const removeFromCart = (prescription_id) => {
     setCart(cart.filter(c => c.prescription_id !== prescription_id));
   };
 
-  // Calculations
-  const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.price) * item.buy_quantity), 0);
+  const subtotal = (cart || []).reduce((sum, item) => sum + ((parseFloat(item.price) || 0) * (item.buy_quantity || 1)), 0);
   const deliveryFee = cart.length > 0 ? 5.99 : 0;
   const total = subtotal + deliveryFee;
 
@@ -146,31 +143,41 @@ const PharmacyCart = () => {
             ) : (
               <div className="space-y-4">
                 {vaultItems.map((item) => {
-                  const maxAllowed = item.total_quantity - item.purchased_quantity;
+                  const maxAllowed = (item.total_quantity || 1) - (item.purchased_quantity || 0);
                   const currentStaged = stagingQuantities[item.prescription_id] || 1;
                   const isInCart = cart.some(c => c.prescription_id === item.prescription_id);
+                  
+                  // Safe Date calculation
+                  const expireDate = new Date(item.valid_until);
+                  const daysLeft = isNaN(expireDate) ? 'N/A' : Math.ceil((expireDate - new Date()) / (1000 * 60 * 60 * 24));
 
                   return (
                     <div key={item.prescription_id} className={`bg-white dark:bg-gray-900 border-2 rounded-3xl p-6 shadow-sm transition-all ${isInCart ? 'border-emerald-400 dark:border-emerald-600' : 'border-gray-200 dark:border-gray-800'}`}>
                       <div className="flex flex-col sm:flex-row justify-between gap-6">
                         
-                        {/* Vault Item Info */}
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="font-bold text-xl text-gray-900 dark:text-white">{item.medicine_name}</h3>
                             {isInCart && <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase px-2 py-1 rounded-md">In Cart</span>}
                           </div>
-                          <p className="text-xs font-bold text-indigo-600 uppercase mb-4">Prescribed by Dr. {item.doctor_name}</p>
+                          
+                          <div className="flex flex-wrap items-center gap-3 mb-4">
+                            <span className="text-xs font-bold text-indigo-600 uppercase">Dr. {item.doctor_name}</span>
+                            {daysLeft !== 'N/A' && daysLeft > 0 && (
+                               <span className="text-[10px] font-bold uppercase bg-amber-100 text-amber-700 px-2 py-1 rounded-md flex items-center gap-1">
+                                 <AlertTriangle className="h-3 w-3"/> Expires in {daysLeft} Days
+                               </span>
+                            )}
+                          </div>
                           
                           <div className="flex gap-4 text-xs font-bold bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-700 w-fit mb-4">
-                            <div className="text-gray-500">Doctor Limit: <span className="text-gray-900 dark:text-white text-sm">{item.total_quantity}</span></div>
-                            <div className="text-blue-600">Already Bought: <span className="text-sm">{item.purchased_quantity}</span></div>
+                            <div className="text-gray-500">Doctor Limit: <span className="text-gray-900 dark:text-white text-sm">{item.total_quantity || 1}</span></div>
+                            <div className="text-blue-600">Already Bought: <span className="text-sm">{item.purchased_quantity || 0}</span></div>
                             <div className="text-emerald-600">Remaining Balance: <span className="text-sm">{maxAllowed}</span></div>
                           </div>
                           <p className="text-xs text-gray-500 italic">"{item.instructions}"</p>
                         </div>
 
-                        {/* Partial Purchase Controls */}
                         <div className="flex flex-col items-end justify-between bg-gray-50 dark:bg-gray-800/30 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 w-full sm:w-48">
                           <p className="text-sm font-bold text-gray-500 mb-2">Amount to buy today:</p>
                           
@@ -216,7 +223,7 @@ const PharmacyCart = () => {
                     <div key={idx} className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 relative">
                       <p className="font-bold text-gray-900 dark:text-white pr-8">{c.medicine_name}</p>
                       <p className="text-xs text-indigo-600 font-bold mt-1">Qty: {c.buy_quantity} unit(s)</p>
-                      <p className="text-sm font-black mt-2">${(c.buy_quantity * parseFloat(c.price)).toFixed(2)}</p>
+                      <p className="text-sm font-black mt-2">${(c.buy_quantity * parseFloat(c.price || 0)).toFixed(2)}</p>
                       
                       <button onClick={() => removeFromCart(c.prescription_id)} className="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition-colors">
                         <Trash2 className="h-4 w-4" />
@@ -232,7 +239,7 @@ const PharmacyCart = () => {
                   <span>${subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 font-medium">
-                  <span>Standard Delivery</span>
+                  <span>Delivery Fee</span>
                   <span>${deliveryFee.toFixed(2)}</span>
                 </div>
                 <div className="pt-3 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
