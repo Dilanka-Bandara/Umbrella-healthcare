@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-// 🚨 BUG FIX: Added Loader2 and Trash2 to the imports!
-import { ShoppingCart, ArrowLeft, Pill, CreditCard, ShieldCheck, CheckCircle, AlertTriangle, Minus, Plus, Archive, ArrowRight, Loader2, Trash2 } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Pill, CreditCard, ShieldCheck, CheckCircle, AlertTriangle, Minus, Plus, Archive, ArrowRight, Loader2, Trash2, Calendar, UserCheck } from 'lucide-react';
 import axios from 'axios';
 
 const PharmacyCart = () => {
@@ -24,7 +23,6 @@ const PharmacyCart = () => {
           headers: { Authorization: `Bearer ${token}` }
         });
         
-        // Safety check to prevent white screens
         if (!Array.isArray(response.data)) return;
 
         const initialStaging = {};
@@ -91,6 +89,28 @@ const PharmacyCart = () => {
     }
   };
 
+  // =====================================================================
+  // 🚨 CHRONOLOGICAL CATEGORIZATION ENGINE
+  // Reduces our raw medicines query array into structured consultation channels
+  // =====================================================================
+  const groupedPrescriptions = vaultItems.reduce((groups, item) => {
+    const groupKey = item.consultation_id || 'manual_entry';
+    if (!groups[groupKey]) {
+      groups[groupKey] = {
+        consultation_id: groupKey,
+        doctor_name: item.doctor_name,
+        prescribed_on: item.prescribed_on,
+        diagnosis: item.diagnosis || 'General Treatment',
+        symptoms_notes: item.symptoms_notes || 'N/A',
+        medicines: []
+      };
+    }
+    groups[groupKey].medicines.push(item);
+    return groups;
+  }, {});
+
+  const consultationChannels = Object.values(groupedPrescriptions);
+
   if (success) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col items-center justify-center p-4">
@@ -99,8 +119,7 @@ const PharmacyCart = () => {
             <CheckCircle className="h-10 w-10" />
           </div>
           <h2 className="text-2xl font-bold mb-2">Prescription Ordered!</h2>
-          <p className="text-gray-500 mb-6">Your payment of ${total.toFixed(2)} was successful. The pharmacy is preparing your medicine.</p>
-          <p className="text-xs font-bold text-emerald-600 bg-emerald-50 py-3 rounded-xl mb-4">Remaining limits updated in your Vault.</p>
+          <p className="text-gray-500 mb-6">Your payment of ${total.toFixed(2)} was successful.</p>
           <p className="text-xs text-gray-400 mt-4">Redirecting to dashboard...</p>
         </div>
       </div>
@@ -123,92 +142,115 @@ const PharmacyCart = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* LEFT SIDE: The Prescription Vault */}
-          <div className="lg:col-span-2 space-y-6">
+          {/* LEFT SIDE: Divided by Consultation Session */}
+          <div className="lg:col-span-2 space-y-8">
             <div className="flex items-center gap-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-800 dark:text-indigo-300 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800/50 shadow-sm">
               <Archive className="h-6 w-6" />
               <div>
                 <h3 className="font-bold">My Prescription Vault</h3>
-                <p className="text-xs">Medicines prescribed by your doctors. Choose exactly how much you want to buy today.</p>
+                <p className="text-xs">Your medications are neatly categorized by visit dates and attending physicians.</p>
               </div>
             </div>
 
             {isLoading ? (
               <div className="flex justify-center py-20"><Loader2 className="h-10 w-10 animate-spin text-indigo-500" /></div>
-            ) : vaultItems.length === 0 ? (
+            ) : consultationChannels.length === 0 ? (
               <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-12 text-center shadow-sm">
                 <Pill className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-xl font-bold mb-2">Vault is Empty</h3>
                 <p className="text-gray-500 text-sm">You have no remaining prescriptions available to purchase.</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {vaultItems.map((item) => {
-                  const maxAllowed = (item.total_quantity || 1) - (item.purchased_quantity || 0);
-                  const currentStaged = stagingQuantities[item.prescription_id] || 1;
-                  const isInCart = cart.some(c => c.prescription_id === item.prescription_id);
+              // Iterate over channels
+              consultationChannels.map((channel) => (
+                <div key={channel.consultation_id} className="space-y-4">
                   
-                  // Safe Date calculation
-                  const expireDate = new Date(item.valid_until);
-                  const daysLeft = isNaN(expireDate.getTime()) ? 'N/A' : Math.ceil((expireDate - new Date()) / (1000 * 60 * 60 * 24));
-
-                  return (
-                    <div key={item.prescription_id} className={`bg-white dark:bg-gray-900 border-2 rounded-3xl p-6 shadow-sm transition-all ${isInCart ? 'border-emerald-400 dark:border-emerald-600' : 'border-gray-200 dark:border-gray-800'}`}>
-                      <div className="flex flex-col sm:flex-row justify-between gap-6">
-                        
-                        {/* Vault Item Info */}
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="font-bold text-xl text-gray-900 dark:text-white">{item.medicine_name}</h3>
-                            {isInCart && <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase px-2 py-1 rounded-md">In Cart</span>}
-                          </div>
-                          
-                          <div className="flex flex-wrap items-center gap-3 mb-4">
-                            <span className="text-xs font-bold text-indigo-600 uppercase">Dr. {item.doctor_name}</span>
-                            {daysLeft !== 'N/A' && daysLeft > 0 && (
-                               <span className="text-[10px] font-bold uppercase bg-amber-100 text-amber-700 px-2 py-1 rounded-md flex items-center gap-1">
-                                 <AlertTriangle className="h-3 w-3"/> Expires in {daysLeft} Days
-                               </span>
-                            )}
-                          </div>
-                          
-                          <div className="flex gap-4 text-xs font-bold bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-700 w-fit mb-4">
-                            <div className="text-gray-500">Doctor Limit: <span className="text-gray-900 dark:text-white text-sm">{item.total_quantity || 1}</span></div>
-                            <div className="text-blue-600">Already Bought: <span className="text-sm">{item.purchased_quantity || 0}</span></div>
-                            <div className="text-emerald-600">Remaining Balance: <span className="text-sm">{maxAllowed}</span></div>
-                          </div>
-                          <p className="text-xs text-gray-500 italic">"{item.instructions}"</p>
-                        </div>
-
-                        {/* Partial Purchase Controls */}
-                        <div className="flex flex-col items-end justify-between bg-gray-50 dark:bg-gray-800/30 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 w-full sm:w-48">
-                          <p className="text-sm font-bold text-gray-500 mb-2">Amount to buy today:</p>
-                          
-                          <div className="flex items-center justify-between w-full bg-white dark:bg-gray-800 rounded-xl p-1.5 border border-gray-200 dark:border-gray-700 mb-4 shadow-sm">
-                            <button onClick={() => updateStagingQuantity(item.prescription_id, currentStaged - 1, maxAllowed)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"><Minus className="h-4 w-4 text-gray-600 dark:text-gray-300"/></button>
-                            <span className="font-black text-indigo-600 dark:text-indigo-400 text-lg w-8 text-center">{currentStaged}</span>
-                            <button onClick={() => updateStagingQuantity(item.prescription_id, currentStaged + 1, maxAllowed)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"><Plus className="h-4 w-4 text-gray-600 dark:text-gray-300"/></button>
-                          </div>
-
-                          <button 
-                            onClick={() => addToCart(item)}
-                            className={`w-full py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${isInCart ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
-                          >
-                            {isInCart ? 'Update Cart' : 'Add to Cart'} <ArrowRight className="h-4 w-4" />
-                          </button>
-                        </div>
-
-                      </div>
+                  {/* 🚨 DYNAMIC CATEGORIZATION HEADER */}
+                  <div className="bg-gray-100 dark:bg-gray-800/60 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-inner">
+                    <div className="flex items-center gap-2 text-sm font-bold text-gray-800 dark:text-gray-200">
+                      <Calendar className="h-4 w-4 text-blue-600" />
+                      <span>{new Date(channel.prescribed_on).toLocaleDateString()}</span>
+                      <span className="text-gray-400">|</span>
+                      <UserCheck className="h-4 w-4 text-emerald-600" />
+                      <span>Dr. {channel.doctor_name}</span>
                     </div>
-                  );
-                })}
-              </div>
+                    <span className="text-xs font-black uppercase tracking-wider bg-blue-600 text-white px-3 py-1 rounded-xl shadow-sm">
+                      Diagnosis: {channel.diagnosis}
+                    </span>
+                  </div>
+
+                  {/* Render all medicines belonging to this specific checkup channel */}
+                  <div className="space-y-3 pl-2 border-l-2 border-blue-500/20">
+                    {channel.medicines.map((item) => {
+                      const maxAllowed = (item.total_quantity || 1) - (item.purchased_quantity || 0);
+                      const currentStaged = stagingQuantities[item.prescription_id] || 1;
+                      const isInCart = cart.some(c => c.prescription_id === item.prescription_id);
+                      
+                      const expireDate = new Date(item.valid_until);
+                      const daysLeft = isNaN(expireDate.getTime()) ? 'N/A' : Math.ceil((expireDate - new Date()) / (1000 * 60 * 60 * 24));
+
+                      return (
+                        <div key={item.prescription_id} className={`bg-white dark:bg-gray-900 border-2 rounded-3xl p-5 shadow-sm transition-all ${isInCart ? 'border-emerald-400 dark:border-emerald-600' : 'border-gray-200 dark:border-gray-800'}`}>
+                          <div className="flex flex-col sm:flex-row justify-between gap-6">
+                            
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h4 className="font-bold text-lg text-gray-900 dark:text-white">{item.medicine_name}</h4>
+                                {isInCart && <span className="bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase px-2 py-0.5 rounded">Staged</span>}
+                              </div>
+                              
+                              <div className="flex items-center gap-3 mb-3">
+                                {daysLeft !== 'N/A' && daysLeft > 0 ? (
+                                   <span className="text-[9px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 px-2 py-0.5 rounded flex items-center gap-1">
+                                     <AlertTriangle className="h-3 w-3"/> Authorization: {daysLeft} Days Left
+                                   </span>
+                                ) : (
+                                   <span className="text-[9px] font-bold bg-red-50 text-red-600 px-2 py-0.5 rounded flex items-center gap-1">
+                                     <AlertTriangle className="h-3 w-3"/> Token Expired
+                                   </span>
+                                )}
+                              </div>
+                              
+                              <div className="flex gap-4 text-[11px] font-bold bg-gray-50 dark:bg-gray-800/40 p-2.5 rounded-xl border border-gray-100 dark:border-gray-700 w-fit mb-3">
+                                <div className="text-gray-500">Allowed: <span>{item.total_quantity || 1}</span></div>
+                                <div className="text-blue-600">Purchased: <span>{item.purchased_quantity || 0}</span></div>
+                                <div className="text-emerald-600">Remaining Balance: <span>{maxAllowed}</span></div>
+                              </div>
+                              <p className="text-xs text-gray-400 italic">Instructions: "{item.instructions}"</p>
+                            </div>
+
+                            <div className="flex flex-col items-end justify-between bg-gray-50 dark:bg-gray-800/30 p-3 rounded-2xl border border-gray-100 dark:border-gray-800 w-full sm:w-44">
+                              <div className="text-xl font-black text-gray-900 dark:text-white">${(currentStaged * parseFloat(item.price || 0)).toFixed(2)}</div>
+                              
+                              <div className="flex items-center justify-between w-full bg-white dark:bg-gray-800 rounded-xl p-1 border border-gray-200 dark:border-gray-700 my-2 shadow-sm">
+                                <button onClick={() => updateStagingQuantity(item.prescription_id, currentStaged - 1, maxAllowed)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"><Minus className="h-3.5 w-3.5 text-gray-500"/></button>
+                                <span className="font-black text-indigo-600 text-base w-6 text-center">{currentStaged}</span>
+                                <button onClick={() => updateStagingQuantity(item.prescription_id, currentStaged + 1, maxAllowed)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"><Plus className="h-3.5 w-3.5 text-gray-500"/></button>
+                              </div>
+
+                              <button 
+                                onClick={() => addToCart(item)}
+                                disabled={daysLeft !== 'N/A' && daysLeft <= 0}
+                                className={`w-full py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all ${isInCart ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50'}`}
+                              >
+                                {isInCart ? 'Update Staged' : 'Stage Medication'}
+                              </button>
+                            </div>
+
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                </div>
+              ))
             )}
           </div>
 
-          {/* RIGHT SIDE: The Shopping Cart */}
+          {/* RIGHT SIDE: Today's Checkout Grid */}
           <div className="w-full">
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-xl shadow-gray-200/50 dark:shadow-black/50 sticky top-6">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-xl sticky top-6">
               
               <div className="flex items-center gap-3 mb-6 border-b border-gray-100 dark:border-gray-800 pb-4">
                 <ShoppingCart className="text-indigo-600 h-6 w-6" />
@@ -218,15 +260,17 @@ const PharmacyCart = () => {
               {cart.length === 0 ? (
                 <div className="text-center py-10 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 mb-6">
                   <p className="text-gray-500 font-semibold text-sm">Cart is empty.</p>
-                  <p className="text-xs text-gray-400 mt-1">Add items from your vault.</p>
+                  <p className="text-xs text-gray-400 mt-1">Stage items from your prescription channels.</p>
                 </div>
               ) : (
                 <div className="space-y-4 mb-6 max-h-60 overflow-y-auto pr-2">
                   {cart.map((c, idx) => (
                     <div key={idx} className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 relative">
-                      <p className="font-bold text-gray-900 dark:text-white pr-8">{c.medicine_name}</p>
-                      <p className="text-xs text-indigo-600 font-bold mt-1">Qty: {c.buy_quantity} unit(s)</p>
-                      <p className="text-sm font-black mt-2">${(c.buy_quantity * parseFloat(c.price || 0)).toFixed(2)}</p>
+                      <p className="font-bold text-gray-900 dark:text-white pr-8 text-sm">{c.medicine_name}</p>
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="text-xs text-indigo-600 font-bold">Qty: {c.buy_quantity}</span>
+                        <span className="text-sm font-black text-gray-900 dark:text-white">${(c.buy_quantity * parseFloat(c.price || 0)).toFixed(2)}</span>
+                      </div>
                       
                       <button onClick={() => removeFromCart(c.prescription_id)} className="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition-colors">
                         <Trash2 className="h-4 w-4" />
@@ -242,7 +286,7 @@ const PharmacyCart = () => {
                   <span>${subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 font-medium">
-                  <span>Delivery Fee</span>
+                  <span>Standard Delivery</span>
                   <span>${deliveryFee.toFixed(2)}</span>
                 </div>
                 <div className="pt-3 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
@@ -253,15 +297,15 @@ const PharmacyCart = () => {
 
               <div className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 p-3 rounded-xl flex gap-3 text-xs mb-6 border border-emerald-100 dark:border-emerald-800/50">
                 <ShieldCheck className="h-5 w-5 shrink-0" />
-                <p><strong>HIPAA Secure.</strong> Your remaining prescription limits will be securely saved in your Vault.</p>
+                <p><strong>HIPAA Compliant Fulfillments.</strong> Prescriptions are verified securely against target consultation logs.</p>
               </div>
 
               <button 
                 onClick={handleCheckout} 
                 disabled={cart.length === 0 || isCheckingOut} 
-                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:text-gray-500 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-600/30"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:text-gray-500 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg"
               >
-                {isCheckingOut ? 'Processing Payment...' : <><CreditCard className="h-5 w-5" /> Pay Securely</>}
+                {isCheckingOut ? 'Processing Order...' : <><CreditCard className="h-5 w-5" /> Pay Securely</>}
               </button>
             </div>
           </div>
