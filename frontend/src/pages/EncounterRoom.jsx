@@ -59,7 +59,6 @@ const EncounterRoom = () => {
     context.clearRect(0, 0, canvas.width, canvas.height);
   };
 
-  // --- LIVE UPLOAD FUNCTION ---
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -70,11 +69,8 @@ const EncounterRoom = () => {
 
     try {
       const config = { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } };
-      
       const uploadRes = await axios.post('http://localhost:5000/api/upload', formData, config);
-      const fileUrl = uploadRes.data.file_url;
-
-      setSessionFiles(prev => [...prev, { name: file.name, url: fileUrl }]);
+      setSessionFiles(prev => [...prev, { name: file.name, url: uploadRes.data.file_url }]);
       alert("File uploaded successfully and attached to this session!");
     } catch (error) {
       console.error("Upload error:", error);
@@ -87,19 +83,11 @@ const EncounterRoom = () => {
   // --- ADVANCED eRx CART SYSTEM ---
   const [rxCart, setRxCart] = useState([]);
   const [medSearch, setMedSearch] = useState('');
+  const [pharmacyDatabase, setPharmacyDatabase] = useState([]); // 🚨 NEW: Dynamic DB State
   const [rxForm, setRxForm] = useState({ amount: 1, frequency: '2x', timing: 'Morning & Evening', meal: 'After Meal', durationDays: 7 });
-
-  const pharmacyDatabase = [
-    { id: '11111111-1111-1111-1111-111111111111', name: 'Amoxicillin 500mg (Antibiotic)', type: 'Capsule' },
-    { id: '22222222-2222-2222-2222-222222222222', name: 'Lisinopril 10mg (Blood Pressure)', type: 'Tablet' },
-    { id: '33333333-3333-3333-3333-333333333333', name: 'Paracetamol 500mg (Pain Relief)', type: 'Tablet' },
-    { id: '44444444-4444-4444-4444-444444444444', name: 'Omeprazole 20mg (Acid Reflux)', type: 'Capsule' },
-  ];
 
   const filteredMeds = medSearch ? pharmacyDatabase.filter(m => m.name.toLowerCase().includes(medSearch.toLowerCase())) : [];
   const selectedMed = pharmacyDatabase.find(m => m.name === medSearch);
-  
-  // Safe math calculation
   const freqNumber = parseInt(rxForm.frequency?.replace('x', '') || 1);
   const totalQuantity = (rxForm.amount || 1) * freqNumber * (rxForm.durationDays || 7);
 
@@ -109,7 +97,7 @@ const EncounterRoom = () => {
       medicine_id: selectedMed.id,
       medicine_name: selectedMed.name,
       total_quantity: totalQuantity,
-      durationDays: rxForm.durationDays, // 🚨 Added for Backend Sync
+      durationDays: rxForm.durationDays,
       instructions: `Take ${rxForm.amount} ${selectedMed.type}(s), ${rxForm.frequency} daily (${rxForm.timing}) - ${rxForm.meal} for ${rxForm.durationDays} days.`
     };
     setRxCart([...rxCart, newRx]);
@@ -118,7 +106,7 @@ const EncounterRoom = () => {
 
   const removeRx = (index) => setRxCart(rxCart.filter((_, i) => i !== index));
 
-  // --- Real-time Chat States ---
+  // --- Real-time Chat & DB Init States ---
   const [message, setMessage] = useState('');
   const [chatLog, setChatLog] = useState([]);
   const messagesEndRef = useRef(null);
@@ -134,9 +122,14 @@ const EncounterRoom = () => {
     });
 
     if (isDoctor) {
-      axios.get(`http://localhost:5000/api/consultations/history/${targetId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      }).then(res => setPatientHistory(res.data)).catch(console.error);
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      // 1. Fetch Patient History
+      axios.get(`http://localhost:5000/api/consultations/history/${targetId}`, config)
+           .then(res => setPatientHistory(res.data)).catch(console.error);
+           
+      // 2. 🚨 FETCH REAL MEDICINES INVENTORY FROM DB
+      axios.get(`http://localhost:5000/api/pharmacy/inventory`, config)
+           .then(res => setPharmacyDatabase(res.data)).catch(console.error);
     }
     return () => socket.off('receive_message');
   }, [currentUser?.id, targetId, isDoctor, token]);
@@ -165,9 +158,7 @@ const EncounterRoom = () => {
       const config = { headers: { Authorization: `Bearer ${token}` } };
       
       if (editingId) {
-        await axios.put(`http://localhost:5000/api/consultations/record/${editingId}`, {
-          symptoms_notes: symptoms, diagnosis: diagnosis
-        }, config);
+        await axios.put(`http://localhost:5000/api/consultations/record/${editingId}`, { symptoms_notes: symptoms, diagnosis: diagnosis }, config);
         alert("Medical Record updated successfully!");
       } else {
         const fileUrlsOnly = sessionFiles.map(file => file.url);
@@ -184,11 +175,11 @@ const EncounterRoom = () => {
                await axios.post(`http://localhost:5000/api/consultations/record/${consultId}/prescribe`, {
                  medicine_id: rx.medicine_id,
                  instructions: rx.instructions,
-                 total_quantity: rx.total_quantity, // 🚨 Now synced with Pharmacy API
-                 duration_days: rx.durationDays     // 🚨 Used to set expiration date!
+                 total_quantity: rx.total_quantity, 
+                 duration_days: rx.durationDays     
                }, config);
             } catch (err) {
-               console.log("Prescription skip (mock ID not in DB): ", rx.medicine_name);
+               console.log("Failed to save prescription: ", rx.medicine_name);
             }
           }
         }
@@ -271,7 +262,6 @@ const EncounterRoom = () => {
                       <Upload className="h-4 w-4" /> Attach Documents & Scans
                     </label>
                     <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,.pdf" />
-                    
                     <button 
                       onClick={() => fileInputRef.current.click()} disabled={isUploading}
                       className="flex-1 border-2 border-dashed border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/10 hover:bg-emerald-100 text-emerald-700 p-4 rounded-xl flex flex-col items-center justify-center transition-colors disabled:opacity-50"
@@ -279,7 +269,6 @@ const EncounterRoom = () => {
                       {isUploading ? <Loader2 className="h-6 w-6 animate-spin mb-1" /> : <Upload className="h-6 w-6 mb-1" />}
                       <span className="text-sm font-bold">{isUploading ? 'Uploading...' : 'Upload File'}</span>
                     </button>
-
                     {sessionFiles.length > 0 && (
                       <div className="mt-2 space-y-1 overflow-y-auto max-h-20">
                         {sessionFiles.map((f, idx) => (
@@ -328,7 +317,6 @@ const EncounterRoom = () => {
                 <MessageSquare className="h-4 w-4 text-emerald-600"/> Patient Communication
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                {/* 🚨 BUG FIX: Optional Chaining on chatLog and msg variables prevents White Screen */}
                 {(chatLog || []).map((msg, idx) => {
                   const isMe = msg?.sender_id === currentUser?.id;
                   return (
@@ -454,9 +442,7 @@ const EncounterRoom = () => {
     );
   }
 
-  // =========================================================
   // PATIENT VIEW 
-  // =========================================================
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-4xl bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col md:flex-row h-[700px]">
@@ -474,7 +460,6 @@ const EncounterRoom = () => {
         </div>
         <div className="w-full md:w-2/3 flex flex-col bg-gray-50">
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
-             {/* 🚨 BUG FIX: Crash-proof mapping for patient chat too! */}
              {(chatLog || []).map((msg, idx) => {
                 const isMe = msg?.sender_id === currentUser?.id;
                 return (
