@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, ArrowLeft, Pill, CreditCard, ShieldCheck, MapPin, Truck, CheckCircle, AlertTriangle, Minus, Plus, Archive, ArrowRight } from 'lucide-react';
+// 🚨 BUG FIX: Added Loader2 and Trash2 to the imports!
+import { ShoppingCart, ArrowLeft, Pill, CreditCard, ShieldCheck, CheckCircle, AlertTriangle, Minus, Plus, Archive, ArrowRight, Loader2, Trash2 } from 'lucide-react';
 import axios from 'axios';
 
 const PharmacyCart = () => {
@@ -149,12 +150,13 @@ const PharmacyCart = () => {
                   
                   // Safe Date calculation
                   const expireDate = new Date(item.valid_until);
-                  const daysLeft = isNaN(expireDate) ? 'N/A' : Math.ceil((expireDate - new Date()) / (1000 * 60 * 60 * 24));
+                  const daysLeft = isNaN(expireDate.getTime()) ? 'N/A' : Math.ceil((expireDate - new Date()) / (1000 * 60 * 60 * 24));
 
                   return (
                     <div key={item.prescription_id} className={`bg-white dark:bg-gray-900 border-2 rounded-3xl p-6 shadow-sm transition-all ${isInCart ? 'border-emerald-400 dark:border-emerald-600' : 'border-gray-200 dark:border-gray-800'}`}>
                       <div className="flex flex-col sm:flex-row justify-between gap-6">
                         
+                        {/* Vault Item Info */}
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="font-bold text-xl text-gray-900 dark:text-white">{item.medicine_name}</h3>
@@ -178,6 +180,7 @@ const PharmacyCart = () => {
                           <p className="text-xs text-gray-500 italic">"{item.instructions}"</p>
                         </div>
 
+                        {/* Partial Purchase Controls */}
                         <div className="flex flex-col items-end justify-between bg-gray-50 dark:bg-gray-800/30 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 w-full sm:w-48">
                           <p className="text-sm font-bold text-gray-500 mb-2">Amount to buy today:</p>
                           
