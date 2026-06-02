@@ -26,18 +26,20 @@ const getInventory = async (req, res) => {
     }
 };
 
-// @desc    Get all active prescriptions (The "Prescription Vault")
+// @desc    Get all active prescriptions categorized by consultation clinical data
+// @route   GET /api/pharmacy/my-cart
 const getMyCart = async (req, res) => {
     try {
         const patient_id = req.user.id;
 
-        // 🚨 BUG FIX: Changed c.created_at to c.consultation_date !!!
+        // 🚨 UPGRADE: Selecting c.id, c.diagnosis, and c.symptoms_notes for proper categorization layout
         const vaultItems = await db.query(
             `SELECT cp.id as prescription_id, cp.instructions, cp.status, 
                     COALESCE(cp.total_quantity, 1) as total_quantity, 
                     COALESCE(cp.purchased_quantity, 0) as purchased_quantity, 
                     cp.valid_until,
                     m.id as medicine_id, m.name as medicine_name, m.price, m.type,
+                    c.id as consultation_id, c.diagnosis, c.symptoms_notes,
                     c.consultation_date as prescribed_on, u.full_name as doctor_name
              FROM consultation_prescriptions cp
              JOIN medicines m ON cp.medicine_id = m.id
