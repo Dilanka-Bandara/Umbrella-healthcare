@@ -94,6 +94,7 @@ function App() {
             <Route path="/encounter/:targetId" element={<EncounterRoom />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/pharmacy" element={<PharmacyCart />} />
+            <Route path="/checkout" element={<Checkout />} />
           </Routes>
         </main>
         

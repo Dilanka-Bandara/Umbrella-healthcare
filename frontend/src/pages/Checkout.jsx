@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-// 🚨 BUG FIX: Added all required icons including Plus, Pill, Loader2, CheckCircle!
+// Included every possible icon to prevent white screen crashes
 import { CreditCard, Smartphone, Wallet, Lock, ShieldCheck, MapPin, Truck, AlertCircle, ArrowLeft, CheckCircle, Loader2, Plus, Pill } from 'lucide-react';
 import axios from 'axios';
 
@@ -8,8 +8,8 @@ const Checkout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Retrieve the cart data passed from PharmacyCart
-  const { cart, subtotal, deliveryFee, total } = location.state || { cart: [], subtotal: 0, deliveryFee: 0, total: 0 };
+  // Retrieve the cart data passed from PharmacyCart securely
+  const { cart = [], subtotal = 0, deliveryFee = 0, total = 0 } = location.state || {};
 
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [savedCard, setSavedCard] = useState('visa-4242');
@@ -35,6 +35,7 @@ const Checkout = () => {
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-950 p-4 text-center">
         <AlertCircle className="h-16 w-16 text-gray-400 mb-4" />
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Items in Checkout</h2>
+        <p className="text-gray-500 mb-4 text-sm">Please return to the pharmacy to select medications.</p>
         <button onClick={() => navigate('/pharmacy')} className="text-indigo-600 font-bold hover:underline">Return to Pharmacy</button>
       </div>
     );
