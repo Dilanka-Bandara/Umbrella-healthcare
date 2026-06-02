@@ -12,6 +12,7 @@ import MessageHub from './pages/MessageHub';
 import AdminDashboard from './pages/AdminDashboard';
 import EncounterRoom from './pages/EncounterRoom';
 import PharmacyCart from './pages/PharmacyCart';
+import Checkout from './pages/Checkout';
 
 // --- THE SMART HOME COMPONENT ---
 const Home = () => {
