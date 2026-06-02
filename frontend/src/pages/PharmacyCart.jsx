@@ -1,18 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, ArrowLeft, Pill, CreditCard, ShieldCheck, CheckCircle, AlertTriangle, Minus, Plus, Archive, ArrowRight, Loader2, Trash2, Calendar, UserCheck, Activity } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Pill, AlertTriangle, Minus, Plus, Archive, ArrowRight, Loader2, Trash2, Calendar, UserCheck, Activity } from 'lucide-react';
 import axios from 'axios';
 
 const PharmacyCart = () => {
   const navigate = useNavigate();
   
-  // States
   const [vaultItems, setVaultItems] = useState([]); 
   const [cart, setCart] = useState([]); 
   const [stagingQuantities, setStagingQuantities] = useState({}); 
   const [isLoading, setIsLoading] = useState(true);
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [success, setSuccess] = useState(false);
 
   const token = localStorage.getItem('token');
 
@@ -53,7 +50,6 @@ const PharmacyCart = () => {
     if (existingCartItem) {
       setCart(cart.map(c => c.prescription_id === vaultItem.prescription_id ? { ...c, buy_quantity: buyQty } : c));
     } else {
-      // Passing all consultation metadata into the cart!
       setCart([...cart, { ...vaultItem, buy_quantity: buyQty }]);
     }
   };
@@ -66,33 +62,13 @@ const PharmacyCart = () => {
   const deliveryFee = cart.length > 0 ? 5.99 : 0;
   const total = subtotal + deliveryFee;
 
-  const handleCheckout = async () => {
+  // 🚨 NEW: Proceed to Checkout Navigation
+  const handleProceedToCheckout = () => {
     if (cart.length === 0) return;
-    setIsCheckingOut(true);
-
-    const itemsToBuy = cart.map(item => ({
-        prescription_id: item.prescription_id,
-        buy_quantity: item.buy_quantity
-    }));
-
-    try {
-      await axios.post('http://localhost:5000/api/pharmacy/checkout', {
-        items: itemsToBuy,
-        total_paid: total,
-        delivery_address: '123 Health Ave, Medical District, NY'
-      }, { headers: { Authorization: `Bearer ${token}` } });
-      
-      setSuccess(true);
-      setTimeout(() => navigate('/dashboard'), 3500);
-    } catch (error) {
-      alert("Payment failed. Please try again.");
-      setIsCheckingOut(false);
-    }
+    // Pass the cart data to the checkout page securely
+    navigate('/checkout', { state: { cart, subtotal, deliveryFee, total } });
   };
 
-  // =====================================================================
-  // 🚨 CLUSTERING ENGINE 1: Vault Items by Consultation Turn
-  // =====================================================================
   const vaultByTurn = vaultItems.reduce((groups, item) => {
     const groupKey = item.consultation_id || `${item.doctor_name}-${item.prescribed_on}`;
     if (!groups[groupKey]) {
@@ -109,9 +85,6 @@ const PharmacyCart = () => {
   }, {});
   const vaultChannels = Object.values(vaultByTurn);
 
-  // =====================================================================
-  // 🚨 CLUSTERING ENGINE 2: Checkout Cart Items by Consultation Turn
-  // =====================================================================
   const cartByTurn = cart.reduce((groups, item) => {
     const groupKey = item.consultation_id || `${item.doctor_name}-${item.prescribed_on}`;
     if (!groups[groupKey]) {
@@ -128,26 +101,9 @@ const PharmacyCart = () => {
   }, {});
   const cartChannels = Object.values(cartByTurn);
 
-  if (success) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col items-center justify-center p-4">
-        <div className="bg-white dark:bg-gray-900 p-8 rounded-3xl shadow-xl text-center max-w-md w-full animate-in zoom-in duration-300">
-          <div className="h-20 w-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="h-10 w-10" />
-          </div>
-          <h2 className="text-2xl font-bold mb-2">Prescription Ordered!</h2>
-          <p className="text-gray-500 mb-6">Your payment of ${total.toFixed(2)} was successful.</p>
-          <p className="text-xs font-bold text-emerald-600 bg-emerald-50 py-3 rounded-xl mb-4">Remaining limits updated in your Vault.</p>
-          <p className="text-xs text-gray-400 mt-4">Redirecting to dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 py-10 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="max-w-7xl mx-auto">
-        
         <div className="flex items-center gap-4 mb-8">
           <button onClick={() => navigate('/dashboard')} className="p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl hover:bg-gray-100 transition-colors shadow-sm">
             <ArrowLeft className="h-5 w-5" />
@@ -159,7 +115,6 @@ const PharmacyCart = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
           {/* LEFT SIDE: The Prescription Vault */}
           <div className="lg:col-span-2 space-y-8">
             <div className="flex items-center gap-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-800 dark:text-indigo-300 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800/50 shadow-sm">
@@ -181,8 +136,6 @@ const PharmacyCart = () => {
             ) : (
               vaultChannels.map((channel) => (
                 <div key={channel.turnId} className="space-y-4">
-                  
-                  {/* Vault Clustering Header */}
                   <div className="bg-white dark:bg-gray-800/60 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-sm">
                     <div className="flex items-center gap-3 text-sm font-bold text-gray-800 dark:text-gray-200">
                       <div className="flex items-center gap-1.5"><Calendar className="h-4 w-4 text-blue-600" /> {new Date(channel.prescribed_on).toLocaleDateString()}</div>
@@ -207,24 +160,24 @@ const PharmacyCart = () => {
                         <div key={item.prescription_id} className={`bg-white dark:bg-gray-900 border-2 rounded-3xl p-5 shadow-sm transition-all ${isInCart ? 'border-emerald-400 dark:border-emerald-600' : 'border-gray-200 dark:border-gray-800'}`}>
                           <div className="flex flex-col sm:flex-row justify-between gap-6">
                             <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-3">
+                              <div className="flex items-center gap-3 mb-2">
                                 <h4 className="font-bold text-lg text-gray-900 dark:text-white">{item.medicine_name}</h4>
                                 {isInCart && <span className="bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase px-2 py-0.5 rounded shadow-sm">Staged</span>}
                               </div>
                               
                               <div className="flex items-center gap-3 mb-3">
                                 {daysLeft !== 'N/A' && daysLeft > 0 ? (
-                                   <span className="text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-1 rounded-lg flex items-center gap-1">
+                                   <span className="text-[9px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-1 rounded-lg flex items-center gap-1">
                                      <AlertTriangle className="h-3.5 w-3.5"/> Auth Expires in {daysLeft} Days
                                    </span>
                                 ) : (
-                                   <span className="text-[10px] font-bold bg-red-50 text-red-600 px-2 py-1 rounded-lg flex items-center gap-1">
+                                   <span className="text-[9px] font-bold bg-red-50 text-red-600 px-2 py-1 rounded-lg flex items-center gap-1">
                                      <AlertTriangle className="h-3.5 w-3.5"/> Token Expired
                                    </span>
                                 )}
                               </div>
                               
-                              <div className="flex gap-4 text-[11px] font-bold bg-gray-50 dark:bg-gray-800/40 p-3 rounded-xl border border-gray-100 dark:border-gray-700 w-fit mb-3">
+                              <div className="flex gap-4 text-[11px] font-bold bg-gray-50 dark:bg-gray-800/40 p-2.5 rounded-xl border border-gray-100 dark:border-gray-700 w-fit mb-3">
                                 <div className="text-gray-500">Allowed: <span>{item.total_quantity || 1}</span></div>
                                 <div className="text-blue-600">Purchased: <span>{item.purchased_quantity || 0}</span></div>
                                 <div className="text-emerald-600 text-sm">Remaining Balance: <span>{maxAllowed}</span></div>
@@ -237,15 +190,15 @@ const PharmacyCart = () => {
                               <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mb-2">${(currentStaged * parseFloat(item.price || 0)).toFixed(2)}</div>
                               
                               <div className="flex items-center justify-between w-full bg-white dark:bg-gray-800 rounded-xl p-1.5 border border-gray-200 dark:border-gray-700 mb-4 shadow-sm">
-                                <button onClick={() => updateStagingQuantity(item.prescription_id, currentStaged - 1, maxAllowed)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"><Minus className="h-4 w-4 text-gray-600 dark:text-gray-300"/></button>
+                                <button onClick={() => updateStagingQuantity(item.prescription_id, currentStaged - 1, maxAllowed)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"><Minus className="h-3.5 w-3.5 text-gray-500"/></button>
                                 <span className="font-black text-gray-900 dark:text-white text-lg w-8 text-center">{currentStaged}</span>
-                                <button onClick={() => updateStagingQuantity(item.prescription_id, currentStaged + 1, maxAllowed)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"><Plus className="h-4 w-4 text-gray-600 dark:text-gray-300"/></button>
+                                <button onClick={() => updateStagingQuantity(item.prescription_id, currentStaged + 1, maxAllowed)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"><Plus className="h-3.5 w-3.5 text-gray-500"/></button>
                               </div>
 
                               <button 
                                 onClick={() => addToCart(item)}
                                 disabled={daysLeft !== 'N/A' && daysLeft <= 0}
-                                className={`w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${isInCart ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50'}`}
+                                className={`w-full py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all ${isInCart ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50'}`}
                               >
                                 {isInCart ? 'Update Cart' : 'Add to Cart'} <ArrowRight className="h-4 w-4" />
                               </button>
@@ -260,13 +213,12 @@ const PharmacyCart = () => {
             )}
           </div>
 
-          {/* RIGHT SIDE: Today's Checkout Grid */}
+          {/* RIGHT SIDE: Cart Summary */}
           <div className="w-full">
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-xl sticky top-6">
-              
               <div className="flex items-center gap-3 mb-6 border-b border-gray-100 dark:border-gray-800 pb-4">
                 <ShoppingCart className="text-indigo-600 h-6 w-6" />
-                <h3 className="font-bold text-xl">Today's Checkout</h3>
+                <h3 className="font-bold text-xl">My Cart</h3>
               </div>
               
               {cartChannels.length === 0 ? (
@@ -276,21 +228,14 @@ const PharmacyCart = () => {
                 </div>
               ) : (
                 <div className="space-y-4 mb-6 max-h-[400px] overflow-y-auto pr-2">
-                  
-                  {/* 🚨 CLUSTERED CART VIEW */}
                   {cartChannels.map((channel) => (
                     <div key={channel.turnId} className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-                      
-                      {/* Cart Consultation Header */}
                       <div className="bg-indigo-50 dark:bg-indigo-900/30 p-3 border-b border-indigo-100 dark:border-indigo-800/50 flex flex-col gap-1">
                         <div className="flex justify-between items-center">
                            <span className="text-[10px] font-black uppercase text-indigo-700 dark:text-indigo-400 flex items-center gap-1"><UserCheck className="h-3 w-3"/> Dr. {channel.doctor_name}</span>
-                           <span className="text-[10px] font-bold text-gray-500">{new Date(channel.prescribed_on).toLocaleDateString()}</span>
                         </div>
                         <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Dx: {channel.diagnosis}</span>
                       </div>
-                      
-                      {/* Medicines within this turn */}
                       <div className="p-3 space-y-3">
                         {channel.medicines.map((c, idx) => (
                           <div key={idx} className="bg-white dark:bg-gray-900 p-3 rounded-xl border border-gray-100 dark:border-gray-800 relative group">
@@ -305,10 +250,8 @@ const PharmacyCart = () => {
                           </div>
                         ))}
                       </div>
-
                     </div>
                   ))}
-
                 </div>
               )}
 
@@ -317,27 +260,19 @@ const PharmacyCart = () => {
                   <span>Medicine Subtotal</span>
                   <span>${subtotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 font-medium">
-                  <span>Standard Delivery</span>
-                  <span>${deliveryFee.toFixed(2)}</span>
-                </div>
                 <div className="pt-3 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                  <span className="font-bold text-gray-900 dark:text-white">Total</span>
-                  <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">${total.toFixed(2)}</span>
+                  <span className="font-bold text-gray-900 dark:text-white">Estimated Total</span>
+                  <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">${total.toFixed(2)}</span>
                 </div>
               </div>
 
-              <div className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 p-3 rounded-xl flex gap-3 text-xs mb-6 border border-emerald-100 dark:border-emerald-800/50">
-                <ShieldCheck className="h-5 w-5 shrink-0" />
-                <p><strong>HIPAA Compliant Fulfillments.</strong> Prescriptions are verified securely against target consultation logs.</p>
-              </div>
-
+              {/* 🚨 NEW: Redirects to the Checkout Page */}
               <button 
-                onClick={handleCheckout} 
-                disabled={cart.length === 0 || isCheckingOut} 
+                onClick={handleProceedToCheckout} 
+                disabled={cart.length === 0} 
                 className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:text-gray-500 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg"
               >
-                {isCheckingOut ? 'Processing Order...' : <><CreditCard className="h-5 w-5" /> Pay Securely</>}
+                Proceed to Checkout <ArrowRight className="h-5 w-5" />
               </button>
             </div>
           </div>
