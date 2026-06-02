@@ -39,15 +39,15 @@ const PatientDashboard = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 text-gray-900 dark:text-gray-100 transition-colors duration-200">
       
-      {/* Dynamic Welcome Banner */}
+      {/* Welcome Banner */}
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Welcome, {currentUser.full_name.split(' ')[0]}!</h1>
           <p className="text-gray-500 font-medium mt-1">Manage your active health services and medical records.</p>
         </div>
-        <div className="h-14 w-14 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center border-2 border-blue-200">
+        <button onClick={() => navigate('/profile')} className="h-14 w-14 bg-blue-100 hover:bg-blue-200 transition-colors text-blue-600 rounded-full flex items-center justify-center border-2 border-blue-200 shadow-sm">
            <User className="h-7 w-7" />
-        </div>
+        </button>
       </div>
 
       {/* 🚨 REDESIGN: MASSIVE CORE SERVICES HIGHLIGHT */}
@@ -88,7 +88,7 @@ const PatientDashboard = () => {
 
         {isLoading ? (
           <div className="flex justify-center py-10"><Loader2 className="h-8 w-8 animate-spin text-blue-500" /></div>
-        ) : medicalHistory.length === 0 ? (
+        ) : (!medicalHistory || medicalHistory.length === 0) ? (
           <div className="text-center py-16 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
             <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500 font-semibold">Your medical vault is currently empty.</p>
@@ -99,7 +99,7 @@ const PatientDashboard = () => {
             {medicalHistory.map((record) => (
               <div key={record.id} className="bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 hover:shadow-md transition-shadow">
                 
-                <div className="flex justify-between items-start mb-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                   <div>
                     <h3 className="font-bold text-xl text-gray-900 dark:text-white">{record.diagnosis}</h3>
                     <p className="text-sm font-bold text-blue-600 dark:text-blue-400 mt-1 flex items-center gap-2">
@@ -117,7 +117,7 @@ const PatientDashboard = () => {
                   <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{record.symptoms_notes}</p>
                 </div>
 
-                {record.prescriptions && record.prescriptions.length > 0 && (
+                {(record.prescriptions || []).length > 0 && (
                   <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1"><Pill className="h-3 w-3" /> Medication Log</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -131,7 +131,11 @@ const PatientDashboard = () => {
                           </div>
                           <div className="pr-10">
                             <p className="font-bold text-base text-gray-900 dark:text-white mb-1">{rx.medicine_name}</p>
-                            <p className="text-xs text-gray-500 italic bg-gray-50 dark:bg-gray-800 p-2 rounded-lg border border-gray-100 dark:border-gray-700">"{rx.instructions}"</p>
+                            <p className="text-xs text-gray-500 italic bg-gray-50 dark:bg-gray-800 p-2 rounded-lg border border-gray-100 dark:border-gray-700 mb-3">"{rx.instructions}"</p>
+                            <div className="flex gap-4 text-[10px] font-bold">
+                              <span className="text-gray-500">Max Limit: {rx.total_quantity || 1}</span>
+                              <span className="text-emerald-600">Purchased: {rx.purchased_quantity || 0}</span>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -139,7 +143,7 @@ const PatientDashboard = () => {
                   </div>
                 )}
 
-                {record.attachments && record.attachments.length > 0 && (
+                {(record.attachments || []).length > 0 && (
                   <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1"><FileImage className="h-3 w-3" /> Digital Scans & Files</p>
                     <div className="flex flex-wrap gap-3">

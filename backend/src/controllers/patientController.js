@@ -63,7 +63,6 @@ const getMyHistory = async (req, res) => {
   try {
     const patientId = req.user.id;
     
-    // 🚨 BUG FIX: Using consultation_date AS created_at
     const historyQuery = await db.query(
       `SELECT c.id, c.consultation_date as created_at, c.diagnosis, c.symptoms_notes, u.full_name as doctor_name
        FROM consultations c JOIN users u ON c.doctor_id = u.id WHERE c.patient_id = $1 ORDER BY c.consultation_date DESC`,
@@ -73,8 +72,10 @@ const getMyHistory = async (req, res) => {
     const consultations = historyQuery.rows;
 
     for (let consult of consultations) {
+      // 🚨 Added total_quantity, purchased_quantity, and valid_until to the query
       const rxQuery = await db.query(
-        `SELECT cp.instructions, cp.status, m.name as medicine_name FROM consultation_prescriptions cp JOIN medicines m ON cp.medicine_id = m.id WHERE cp.consultation_id = $1`,
+        `SELECT cp.instructions, cp.status, cp.total_quantity, cp.purchased_quantity, cp.valid_until, m.name as medicine_name 
+         FROM consultation_prescriptions cp JOIN medicines m ON cp.medicine_id = m.id WHERE cp.consultation_id = $1`,
         [consult.id]
       );
       consult.prescriptions = rxQuery.rows;

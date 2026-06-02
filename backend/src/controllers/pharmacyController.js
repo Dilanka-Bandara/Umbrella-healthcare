@@ -1,12 +1,12 @@
 const db = require('../config/db');
 
-// 🔥 AUTO-MIGRATION: Adds Partial Fulfillment columns safely
+// 🔥 AUTO-MIGRATION: Safely adds Partial Fulfillment columns to the database!
 db.query(`
   ALTER TABLE consultation_prescriptions 
   ADD COLUMN IF NOT EXISTS total_quantity INT DEFAULT 1,
   ADD COLUMN IF NOT EXISTS purchased_quantity INT DEFAULT 0,
   ADD COLUMN IF NOT EXISTS valid_until TIMESTAMP;
-`).catch(() => console.log("DB migration skipped"));
+`).catch(() => console.log("DB check skipped"));
 
 // @desc    Get all active prescriptions (The "Prescription Vault")
 // @route   GET /api/pharmacy/my-cart
@@ -14,7 +14,7 @@ const getMyCart = async (req, res) => {
     try {
         const patient_id = req.user.id;
 
-        // Fetch only prescriptions that have a remaining balance AND are not expired
+        // 🚨 ENTERPRISE LOGIC: Only fetch if valid_until is in the future AND purchased < total
         const vaultItems = await db.query(
             `SELECT cp.id as prescription_id, cp.instructions, cp.status, 
                     cp.total_quantity, cp.purchased_quantity, cp.valid_until,
@@ -54,7 +54,7 @@ const processCheckout = async (req, res) => {
         );
         const order_id = newOrder.rows[0].id;
 
-        // 2. Loop through and deduct the purchased amount from the Vault limit!
+        // 2. Loop through and deduct the purchased amount from the Vault limit securely
         for (const item of items) {
             await db.query(
                 `UPDATE consultation_prescriptions 
