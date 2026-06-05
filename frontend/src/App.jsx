@@ -13,14 +13,24 @@ import AdminDashboard from './pages/AdminDashboard';
 import EncounterRoom from './pages/EncounterRoom';
 import PharmacyCart from './pages/PharmacyCart';
 import Checkout from './pages/Checkout';
+// 🚨 NEW: Import the Doctor Review page properly
+import DoctorReview from './pages/DoctorReview';
 
 // --- THE SMART HOME COMPONENT ---
 const Home = () => {
   const navigate = useNavigate();
   const userStr = localStorage.getItem('user');
-  const currentUser = userStr ? JSON.parse(userStr) : null;
+  let currentUser = null;
 
-// The Smart Routing Logic
+  // 🚨 CRASH PREVENTION: Safely parse the user data so bad cache doesn't cause a white screen
+  try {
+    currentUser = userStr && userStr !== "undefined" ? JSON.parse(userStr) : null;
+  } catch (error) {
+    console.error("Failed to parse user data from local storage.");
+    currentUser = null;
+  }
+
+  // The Smart Routing Logic
   const handleTelehealthClick = () => {
     if (!currentUser) {
       // Guest: Must log in first
@@ -84,6 +94,7 @@ function App() {
         
         <main>
           <Routes>
+            {/* Standard Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/dashboard" element={<PatientDashboard />} />
             <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
@@ -95,9 +106,12 @@ function App() {
             <Route path="/connect" element={<ConnectDoctor />} />
             <Route path="/message-hub" element={<MessageHub />} />
             <Route path="/encounter/:targetId" element={<EncounterRoom />} />
-            <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/pharmacy" element={<PharmacyCart />} />
             <Route path="/checkout" element={<Checkout />} />
+            
+            {/* Admin Routes */}
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/review" element={<DoctorReview />} />
           </Routes>
         </main>
         
