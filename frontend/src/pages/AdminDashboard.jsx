@@ -6,9 +6,11 @@ import {
   CheckCircle, Ban, Loader2, Eye, Pill, ScrollText, UserCog, Search,
   TrendingUp, ShoppingCart, Stethoscope, MessageSquare, FileSignature,
   RefreshCw, AlertTriangle, X, Percent, ChevronLeft, ChevronRight,
+  UserPlus, FileText, ExternalLink, Files, Clock, Mail, Phone, Hash,
 } from 'lucide-react';
 
 const API = 'http://localhost:5000/api/admin';
+const VERIFY_API = 'http://localhost:5000/api/verification';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -30,6 +32,16 @@ const AdminDashboard = () => {
   const [medicines, setMedicines] = useState([]);
   const [users, setUsers] = useState([]);
   const [auditLog, setAuditLog] = useState([]);
+
+  // --- Doctor approvals (newly registered, pending verification) ---
+  const [pendingDoctors, setPendingDoctors] = useState([]);
+  const [verifyCounts, setVerifyCounts] = useState({ pending: 0, approved: 0, rejected: 0 });
+  const [approvalsTarget, setApprovalsTarget] = useState(null); // doctor being viewed in modal
+  const [approvalsDocs, setApprovalsDocs] = useState([]);
+  const [activeDocUrl, setActiveDocUrl] = useState(null);
+  const [rejectMode, setRejectMode] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [decisionLoading, setDecisionLoading] = useState(false);
 
   // --- Settings state ---
   const [newCommission, setNewCommission] = useState(15);
@@ -54,7 +66,7 @@ const AdminDashboard = () => {
   const fetchData = async (silent = false) => {
     try {
       silent ? setRefreshing(true) : setIsLoading(true);
-      const [statsRes, trendRes, docsRes, transRes, medsRes, usersRes, auditRes] =
+      const [statsRes, trendRes, docsRes, transRes, medsRes, usersRes, auditRes, queueRes] =
         await Promise.all([
           axios.get(`${API}/stats`, config),
           axios.get(`${API}/revenue-trend`, config),
@@ -63,6 +75,7 @@ const AdminDashboard = () => {
           axios.get(`${API}/medicines`, config),
           axios.get(`${API}/users`, config),
           axios.get(`${API}/audit-log`, config),
+          axios.get(`${VERIFY_API}/queue?filter=pending`, config),
         ]);
       setStats(statsRes.data);
       setNewCommission(statsRes.data.commission_percent);
@@ -72,6 +85,8 @@ const AdminDashboard = () => {
       setMedicines(medsRes.data);
       setUsers(usersRes.data);
       setAuditLog(auditRes.data);
+      setPendingDoctors(queueRes.data.doctors || []);
+      setVerifyCounts(queueRes.data.counts || { pending: 0, approved: 0, rejected: 0 });
     } catch (error) {
       console.error('Admin fetch error', error);
       if (error.response?.status === 403 || error.response?.status === 401) {
@@ -121,6 +136,59 @@ const AdminDashboard = () => {
       config
     );
     fetchData(true);
+  };
+
+  // --- Doctor approval (verification) actions ---
+  const openApplicant = async (doctor) => {
+    setApprovalsTarget(doctor);
+    setRejectMode(false);
+    setRejectReason('');
+    setApprovalsDocs([]);
+    setActiveDocUrl(null);
+    try {
+      const { data } = await axios.get(`${VERIFY_API}/${doctor.id}`, config);
+      const docs = [];
+      if (data.medical_license_url) {
+        docs.push({
+          id: 'primary',
+          doc_type: 'Medical License (registration)',
+          file_url: data.medical_license_url,
+        });
+      }
+      (data.documents || []).forEach((d) => docs.push(d));
+      setApprovalsDocs(docs);
+      setActiveDocUrl(docs[0]?.file_url || null);
+      setApprovalsTarget({ ...doctor, ...data });
+    } catch (e) {
+      console.error('Failed to load applicant docs', e);
+    }
+  };
+
+  const decideApplicant = async (decision, notes) => {
+    setDecisionLoading(true);
+    try {
+      await axios.put(`${VERIFY_API}/${approvalsTarget.id}/decision`, { decision, notes }, config);
+      setApprovalsTarget(null);
+      fetchData(true);
+    } catch (e) {
+      alert(e.response?.data?.message || 'Failed to record decision.');
+    } finally {
+      setDecisionLoading(false);
+    }
+  };
+
+  const handleApprove = () => {
+    if (window.confirm(`Approve ${approvalsTarget.full_name} and grant platform access?`)) {
+      decideApplicant('approve', '');
+    }
+  };
+
+  const handleReject = () => {
+    if (!rejectReason.trim()) {
+      alert('Please give a reason — the applicant and audit log will see this.');
+      return;
+    }
+    decideApplicant('reject', rejectReason.trim());
   };
 
   // --- Commission actions ---
@@ -178,7 +246,8 @@ const AdminDashboard = () => {
 
   const navItems = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { id: 'doctors', label: 'Doctor Moderation', icon: Users, badge: stats.doctors.pending_docs },
+    { id: 'approvals', label: 'Doctor Approvals', icon: UserPlus, badge: verifyCounts.pending },
+    { id: 'doctors', label: 'Doctor Compliance', icon: Users },
     { id: 'sales', label: 'Sales & Transactions', icon: Activity },
     { id: 'fees', label: 'Fee & Commission', icon: Percent },
     { id: 'users', label: 'User Directory', icon: UserCog },
@@ -299,6 +368,74 @@ const AdminDashboard = () => {
                 <TrendingUp className="h-5 w-5 text-indigo-500" />
               </div>
               <TrendChart data={trend} />
+            </div>
+          </div>
+        )}
+
+        {/* ---------- DOCTOR APPROVALS (newly registered) ---------- */}
+        {activeTab === 'approvals' && (
+          <div className="space-y-6 animate-in fade-in">
+            <div>
+              <h1 className="text-3xl font-black text-gray-900 dark:text-white">Doctor Approvals</h1>
+              <p className="text-gray-500 mt-1">
+                Newly registered doctors awaiting verification. Review their documents, then approve or reject.
+              </p>
+            </div>
+
+            {/* Mini stat strip */}
+            <div className="grid grid-cols-3 gap-4 max-w-2xl">
+              <div className="bg-white dark:bg-gray-900 border border-amber-100 dark:border-amber-900/30 rounded-2xl p-4">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Pending</p>
+                <p className="text-2xl font-black text-amber-600">{verifyCounts.pending}</p>
+              </div>
+              <div className="bg-white dark:bg-gray-900 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-4">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Approved</p>
+                <p className="text-2xl font-black text-emerald-600">{verifyCounts.approved}</p>
+              </div>
+              <div className="bg-white dark:bg-gray-900 border border-red-100 dark:border-red-900/30 rounded-2xl p-4">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Rejected</p>
+                <p className="text-2xl font-black text-red-600">{verifyCounts.rejected}</p>
+              </div>
+            </div>
+
+            {/* Pending applicant cards */}
+            <div className="space-y-4">
+              {pendingDoctors.map((doc) => (
+                <div key={doc.id} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 bg-amber-50 dark:bg-amber-900/30 text-amber-600 rounded-full flex items-center justify-center shrink-0">
+                      <UserPlus className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-900 dark:text-white">{doc.full_name}</p>
+                      <p className="text-xs text-gray-500">{doc.email} · {doc.phone_number || 'no phone'}</p>
+                      <div className="flex items-center gap-3 mt-1.5">
+                        <span className="text-[11px] text-gray-400">
+                          Registered {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : '—'}
+                        </span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                          doc.medical_license_url || Number(doc.extra_doc_count) > 0
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          <FileText className="h-3 w-3" />
+                          {(doc.medical_license_url ? 1 : 0) + Number(doc.extra_doc_count || 0)} document(s)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <button onClick={() => openApplicant(doc)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm flex items-center gap-2 justify-center">
+                    <Eye className="h-4 w-4" /> Review & Decide
+                  </button>
+                </div>
+              ))}
+              {pendingDoctors.length === 0 && (
+                <div className="text-center p-12 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800">
+                  <CheckCircle className="h-12 w-12 text-emerald-400 mx-auto mb-3" />
+                  <p className="text-gray-500 font-semibold">No pending registrations. All caught up!</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -613,6 +750,120 @@ const AdminDashboard = () => {
 
       </div>
 
+      {/* ============ DOCTOR APPROVAL REVIEW MODAL ============ */}
+      {approvalsTarget && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 w-full max-w-5xl max-h-[92vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+
+            {/* Header */}
+            <div className="bg-slate-900 text-white p-5 flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 bg-slate-800 rounded-full flex items-center justify-center border-2 border-slate-700">
+                  <UserCheck className="h-6 w-6 text-indigo-400" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">{approvalsTarget.full_name}</h2>
+                  <p className="text-slate-400 text-xs font-mono">Applicant #{String(approvalsTarget.id).split('-')[0]}</p>
+                </div>
+              </div>
+              <button onClick={() => setApprovalsTarget(null)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto flex flex-col lg:flex-row">
+
+              {/* Left: details + decision */}
+              <div className="w-full lg:w-[340px] p-6 border-r border-gray-100 dark:border-gray-800 shrink-0 space-y-4">
+                <ApplicantInfo icon={Mail} label="Email" value={approvalsTarget.email} />
+                <ApplicantInfo icon={Phone} label="Phone" value={approvalsTarget.phone_number || '—'} />
+                <ApplicantInfo icon={Hash} label="Clinic ID" value={approvalsTarget.clinic_id || 'Not provided'} mono />
+                <ApplicantInfo icon={Clock} label="Registered"
+                  value={approvalsTarget.created_at ? new Date(approvalsTarget.created_at).toLocaleString() : '—'} />
+
+                {approvalsDocs.length === 0 && (
+                  <div className="bg-amber-50 border border-amber-100 text-amber-700 text-xs font-bold p-3 rounded-xl text-center">
+                    ⚠ No documents uploaded. Verify credentials externally before approving.
+                  </div>
+                )}
+
+                {!rejectMode ? (
+                  <div className="space-y-3 pt-2">
+                    <button onClick={handleApprove} disabled={decisionLoading}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30">
+                      {decisionLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle className="h-5 w-5" />}
+                      Approve & Grant Access
+                    </button>
+                    <button onClick={() => setRejectMode(true)} disabled={decisionLoading}
+                      className="w-full bg-white dark:bg-gray-900 border-2 border-red-100 dark:border-red-900/50 hover:bg-red-50 text-red-600 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2">
+                      <Ban className="h-5 w-5" /> Reject Application
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3 pt-2">
+                    <label className="block text-xs font-bold text-gray-500 uppercase">Reason for rejection</label>
+                    <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={3}
+                      placeholder="e.g. License document is unreadable. Please re-upload a clear copy."
+                      className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-red-500" />
+                    <div className="flex gap-2">
+                      <button onClick={() => setRejectMode(false)}
+                        className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 text-sm">
+                        Back
+                      </button>
+                      <button onClick={handleReject} disabled={decisionLoading}
+                        className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg shadow-red-600/30 text-sm flex items-center justify-center gap-1">
+                        {decisionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm Reject'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right: document viewer */}
+              <div className="flex-1 flex flex-col bg-slate-100 dark:bg-slate-950 min-h-[420px]">
+                {approvalsDocs.length > 0 && (
+                  <div className="flex gap-2 p-3 border-b border-gray-200 dark:border-gray-800 overflow-x-auto bg-white dark:bg-gray-900">
+                    {approvalsDocs.map((d) => (
+                      <button key={d.id} onClick={() => setActiveDocUrl(d.file_url)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${
+                          activeDocUrl === d.file_url
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200'
+                        }`}>
+                        <FileText className="h-3.5 w-3.5" /> {d.doc_type}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="flex-1 p-5 flex items-center justify-center">
+                  {activeDocUrl ? (
+                    <div className="w-full h-full flex flex-col">
+                      <div className="flex-1 max-h-[600px] border border-gray-300 dark:border-gray-700 rounded-2xl overflow-hidden shadow-inner bg-white">
+                        {activeDocUrl.toLowerCase().split('?')[0].endsWith('.pdf') ? (
+                          <iframe src={activeDocUrl} className="w-full h-full min-h-[440px]" title="Credential" />
+                        ) : (
+                          <img src={activeDocUrl} alt="Credential" className="w-full h-full object-contain p-2" />
+                        )}
+                      </div>
+                      <a href={activeDocUrl} target="_blank" rel="noreferrer"
+                        className="mt-3 self-center text-sm font-bold text-indigo-600 hover:underline flex items-center gap-1">
+                        <ExternalLink className="h-4 w-4" /> Open full size
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <Files className="h-16 w-16 text-gray-300 dark:text-gray-700 mx-auto mb-4" />
+                      <p className="text-sm text-gray-500">No documents to preview.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ============ SUSPENSION MODAL ============ */}
       {suspendTarget && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -656,6 +907,17 @@ const AdminDashboard = () => {
 };
 
 /* ===================== SMALL PRESENTATIONAL COMPONENTS ===================== */
+
+const ApplicantInfo = ({ icon: Icon, label, value, mono }) => (
+  <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-100 dark:border-gray-700">
+    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+      <Icon className="h-3 w-3" /> {label}
+    </p>
+    <p className={`font-bold text-gray-900 dark:text-white text-sm ${mono ? 'font-mono text-indigo-600 dark:text-indigo-400' : ''}`}>
+      {value}
+    </p>
+  </div>
+);
 
 const KpiCard = ({ icon: Icon, color, label, value, sub }) => {
   const colors = {
