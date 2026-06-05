@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
   LayoutDashboard, Users, Activity, Settings, DollarSign, 
-  ShieldAlert, CheckCircle, Ban, ArrowRight, Loader2, FileText, ShoppingCart
+  ShieldAlert, CheckCircle, Ban, Loader2, Eye
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -48,7 +48,6 @@ const AdminDashboard = () => {
     if (token) fetchData();
   }, [token]);
 
-  // --- Handlers ---
   const handleUpdateStatus = async (doctorId, newStatus) => {
     if (!window.confirm(`Are you sure you want to change this doctor to ${newStatus}?`)) return;
     try {
@@ -121,7 +120,6 @@ const AdminDashboard = () => {
               <p className="text-gray-500 mt-1">High-level metrics and financial tracking.</p>
             </div>
 
-            {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800">
                 <div className="h-12 w-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-4"><DollarSign className="h-6 w-6"/></div>
@@ -160,56 +158,58 @@ const AdminDashboard = () => {
         {/* TAB 2: DOCTOR MODERATION */}
         {activeTab === 'doctors' && (
           <div className="space-y-6 animate-in fade-in">
-            <div className="flex justify-between items-end">
-              <div>
-                <h1 className="text-3xl font-black text-gray-900 dark:text-white">Doctor Compliance</h1>
-                <p className="text-gray-500 mt-1">Approve registrations and suspend accounts under investigation.</p>
-              </div>
+            <div>
+              <h1 className="text-3xl font-black text-gray-900 dark:text-white">Doctor Compliance</h1>
+              <p className="text-gray-500 mt-1">Review credentials and moderate access to the telehealth portal.</p>
             </div>
 
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50 dark:bg-gray-800/50 text-gray-500 text-xs uppercase tracking-widest border-b border-gray-200 dark:border-gray-800">
-                      <th className="p-4 font-bold">Doctor Details</th>
-                      <th className="p-4 font-bold">Clinic ID</th>
-                      <th className="p-4 font-bold">Status</th>
-                      <th className="p-4 font-bold text-right">Moderation Action</th>
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 dark:bg-gray-800/50 text-gray-500 text-xs uppercase tracking-widest border-b border-gray-200 dark:border-gray-800">
+                    <th className="p-4 font-bold">Doctor Details</th>
+                    <th className="p-4 font-bold">Clinic ID</th>
+                    <th className="p-4 font-bold">Status</th>
+                    <th className="p-4 font-bold text-right">Moderation Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-sm">
+                  {doctors.map(doc => (
+                    <tr key={doc.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                      <td className="p-4">
+                        <p className="font-bold text-gray-900 dark:text-white">{doc.full_name}</p>
+                        <p className="text-xs text-gray-500">{doc.email} | {doc.phone_number}</p>
+                      </td>
+                      <td className="p-4 font-mono text-gray-600 dark:text-gray-400">{doc.clinic_id || 'N/A'}</td>
+                      <td className="p-4">
+                        {doc.status === 'active' && <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 w-fit"><CheckCircle className="h-3 w-3"/> Active</span>}
+                        {doc.status === 'pending' && <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 w-fit"><ShieldAlert className="h-3 w-3"/> Pending Review</span>}
+                        {doc.status === 'suspended' && <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 w-fit"><Ban className="h-3 w-3"/> Suspended</span>}
+                      </td>
+                      <td className="p-4 flex gap-2 justify-end">
+                        {doc.status === 'pending' && (
+                          // 🚨 NEW: Navigates to the completely separate Review Page securely!
+                          <button 
+                            onClick={() => navigate('/admin/review', { state: { doctor: doc } })} 
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-xs shadow-sm transition-colors flex items-center gap-1"
+                          >
+                            <Eye className="h-3.5 w-3.5"/> Review Application
+                          </button>
+                        )}
+                        {doc.status === 'active' && (
+                          <button onClick={() => handleUpdateStatus(doc.id, 'suspended')} className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2 rounded-lg font-bold text-xs shadow-sm transition-colors">Suspend</button>
+                        )}
+                        {doc.status === 'suspended' && (
+                          <button onClick={() => handleUpdateStatus(doc.id, 'active')} className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-bold text-xs shadow-sm transition-colors">Restore</button>
+                        )}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-sm">
-                    {doctors.map(doc => (
-                      <tr key={doc.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
-                        <td className="p-4">
-                          <p className="font-bold text-gray-900 dark:text-white">{doc.full_name}</p>
-                          <p className="text-xs text-gray-500">{doc.email} | {doc.phone_number}</p>
-                        </td>
-                        <td className="p-4 font-mono text-gray-600 dark:text-gray-400">{doc.clinic_id || 'N/A'}</td>
-                        <td className="p-4">
-                          {doc.status === 'active' && <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 w-fit"><CheckCircle className="h-3 w-3"/> Active</span>}
-                          {doc.status === 'pending' && <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 w-fit"><ShieldAlert className="h-3 w-3"/> Pending Review</span>}
-                          {doc.status === 'suspended' && <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 w-fit"><Ban className="h-3 w-3"/> Suspended</span>}
-                        </td>
-                        <td className="p-4 flex gap-2 justify-end">
-                          {doc.status === 'pending' && (
-                            <button onClick={() => handleUpdateStatus(doc.id, 'active')} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold text-xs shadow-sm transition-colors">Approve</button>
-                          )}
-                          {doc.status === 'active' && (
-                            <button onClick={() => handleUpdateStatus(doc.id, 'suspended')} className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2 rounded-lg font-bold text-xs shadow-sm transition-colors">Suspend Access</button>
-                          )}
-                          {doc.status === 'suspended' && (
-                            <button onClick={() => handleUpdateStatus(doc.id, 'active')} className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-bold text-xs shadow-sm transition-colors">Restore Access</button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                    {doctors.length === 0 && (
-                      <tr><td colSpan="4" className="text-center p-10 text-gray-500">No doctors registered yet.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                  {doctors.length === 0 && (
+                    <tr><td colSpan="4" className="text-center p-10 text-gray-500">No doctors registered yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

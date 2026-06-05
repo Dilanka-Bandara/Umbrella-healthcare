@@ -3,10 +3,10 @@ const db = require('../config/db');
 // 🔥 AUTO-MIGRATION: Prepare Database for Enterprise Admin Features
 const initializeAdminDB = async () => {
   try {
-    // 1. Add status to users for Doctor Moderation (pending, active, suspended)
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';`);
+    // 🚨 NEW: Add support for Medical License documents during registration
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS medical_license_url VARCHAR(500);`);
     
-    // 2. Create System Settings table for the Commission Engine
     await db.query(`
       CREATE TABLE IF NOT EXISTS system_settings (
         id SERIAL PRIMARY KEY,
@@ -15,7 +15,6 @@ const initializeAdminDB = async () => {
       );
     `);
     
-    // 3. Set default commission to 15% if it doesn't exist
     await db.query(`
       INSERT INTO system_settings (setting_key, setting_value) 
       VALUES ('platform_commission_percent', '15') 
@@ -26,7 +25,6 @@ const initializeAdminDB = async () => {
 initializeAdminDB();
 
 // @desc    Get High-Level Dashboard Stats
-// @route   GET /api/admin/stats
 const getDashboardStats = async (req, res) => {
     try {
         const salesQuery = await db.query(`SELECT SUM(total_amount) as total_sales FROM orders WHERE status != 'cancelled'`);
@@ -55,12 +53,11 @@ const getDashboardStats = async (req, res) => {
     }
 };
 
-// @desc    Get all doctors for moderation
-// @route   GET /api/admin/doctors
+// @desc    Get all doctors for moderation (Now includes License URL)
 const getDoctorsList = async (req, res) => {
     try {
         const doctors = await db.query(`
-            SELECT id, full_name, email, phone_number, clinic_id, status, created_at 
+            SELECT id, full_name, email, phone_number, clinic_id, status, created_at, medical_license_url 
             FROM users WHERE role = 'doctor' ORDER BY created_at DESC
         `);
         res.status(200).json(doctors.rows);
@@ -70,10 +67,9 @@ const getDoctorsList = async (req, res) => {
 };
 
 // @desc    Update Doctor Status (Approve, Suspend, Restore)
-// @route   PUT /api/admin/doctors/:id/status
 const updateDoctorStatus = async (req, res) => {
     try {
-        const { status } = req.body; // 'active', 'suspended', 'pending'
+        const { status } = req.body; 
         await db.query(`UPDATE users SET status = $1 WHERE id = $2`, [status, req.params.id]);
         res.status(200).json({ message: `Doctor status updated to ${status}` });
     } catch (error) {
@@ -81,22 +77,16 @@ const updateDoctorStatus = async (req, res) => {
     }
 };
 
-// @desc    Update System Commission Rate
-// @route   POST /api/admin/settings/commission
 const updateCommissionRate = async (req, res) => {
     try {
         const { percentage } = req.body;
-        await db.query(`
-            UPDATE system_settings SET setting_value = $1 WHERE setting_key = 'platform_commission_percent'
-        `, [percentage]);
+        await db.query(`UPDATE system_settings SET setting_value = $1 WHERE setting_key = 'platform_commission_percent'`, [percentage]);
         res.status(200).json({ message: 'Platform commission updated successfully!' });
     } catch (error) {
         res.status(500).json({ message: 'Error updating settings' });
     }
 };
 
-// @desc    Get all recent transactions
-// @route   GET /api/admin/transactions
 const getTransactions = async (req, res) => {
     try {
         const orders = await db.query(`
