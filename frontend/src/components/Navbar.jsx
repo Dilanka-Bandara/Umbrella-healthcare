@@ -36,10 +36,12 @@ const Navbar = () => {
   };
 
   const goToDashboard = () => {
-    if (currentUser?.role === 'doctor') {
+    if (currentUser?.role === 'admin') {
+      navigate('/admin');
+    } else if (currentUser?.role === 'doctor') {
       navigate('/doctor-dashboard');
     } else {
-      navigate('/dashboard');
+      navigate('/dashboard'); // Patient
     }
   };
 

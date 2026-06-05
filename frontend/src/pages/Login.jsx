@@ -33,11 +33,18 @@ const Login = () => {
       // 2. Success! Extract the digital keys (JWT Token and User Details)
       const { token, user } = response.data;
 
-      // 3. Save the keys in the browser's permanent memory (Local Storage)
+    // 3. Save the keys in the browser's permanent memory (Local Storage)
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-     // 4. Send them back to the main homepage!
-      navigate('/');
+      
+      // 4. Smart Routing: Send them to their specific dashboard!
+      if (user.role === 'admin') {
+        navigate('/admin');
+      } else if (user.role === 'doctor') {
+        navigate('/doctor-dashboard');
+      } else {
+        navigate('/dashboard'); // Patient
+      }
 
     } catch (err) {
       console.error(err);

@@ -1,53 +1,112 @@
 const db = require('../config/db');
 
-// @desc    Get all doctors waiting for approval
-// @route   GET /api/admin/pending-doctors
-const getPendingDoctors = async (req, res) => {
+// 🔥 AUTO-MIGRATION: Prepare Database for Enterprise Admin Features
+const initializeAdminDB = async () => {
   try {
-    const query = await db.query(
-      `SELECT id, full_name, email, phone_number, created_at 
-       FROM users 
-       WHERE role = 'doctor' AND is_verified = false 
-       ORDER BY created_at ASC`
-    );
-    res.status(200).json(query.rows);
-  } catch (error) {
-    console.error('Error fetching pending doctors:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-// @desc    Approve a doctor and generate their Clinic ID
-// @route   PUT /api/admin/approve-doctor/:id
-const approveDoctor = async (req, res) => {
-  try {
-    const { id } = req.params;
+    // 1. Add status to users for Doctor Moderation (pending, active, suspended)
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';`);
     
-    // Generate a unique 4-digit Clinic ID (e.g., DOC-4928)
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
-    const clinicId = `DOC-${randomNum}`;
+    // 2. Create System Settings table for the Commission Engine
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS system_settings (
+        id SERIAL PRIMARY KEY,
+        setting_key VARCHAR(50) UNIQUE NOT NULL,
+        setting_value VARCHAR(255) NOT NULL
+      );
+    `);
+    
+    // 3. Set default commission to 15% if it doesn't exist
+    await db.query(`
+      INSERT INTO system_settings (setting_key, setting_value) 
+      VALUES ('platform_commission_percent', '15') 
+      ON CONFLICT (setting_key) DO NOTHING;
+    `);
+  } catch (err) { console.log("Admin DB Check Skipped.", err.message); }
+};
+initializeAdminDB();
 
-    const updateQuery = await db.query(
-      `UPDATE users 
-       SET is_verified = true, clinic_id = $1 
-       WHERE id = $2 AND role = 'doctor' 
-       RETURNING id, full_name, clinic_id, email`,
-      [clinicId, id]
-    );
+// @desc    Get High-Level Dashboard Stats
+// @route   GET /api/admin/stats
+const getDashboardStats = async (req, res) => {
+    try {
+        const salesQuery = await db.query(`SELECT SUM(total_amount) as total_sales FROM orders WHERE status != 'cancelled'`);
+        const totalSales = parseFloat(salesQuery.rows[0].total_sales || 0);
 
-    if (updateQuery.rows.length === 0) {
-      return res.status(404).json({ message: 'Doctor not found or already verified.' });
+        const commQuery = await db.query(`SELECT setting_value FROM system_settings WHERE setting_key = 'platform_commission_percent'`);
+        const commPercent = parseFloat(commQuery.rows[0].setting_value || 0);
+        const platformRevenue = totalSales * (commPercent / 100);
+
+        const docQuery = await db.query(`
+            SELECT 
+                COUNT(*) FILTER (WHERE status = 'pending') as pending_docs,
+                COUNT(*) FILTER (WHERE status = 'active') as active_docs,
+                COUNT(*) FILTER (WHERE status = 'suspended') as suspended_docs
+            FROM users WHERE role = 'doctor'
+        `);
+
+        res.status(200).json({
+            total_sales: totalSales,
+            platform_revenue: platformRevenue,
+            commission_percent: commPercent,
+            doctors: docQuery.rows[0]
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching stats' });
     }
-
-    res.status(200).json({ 
-      message: 'Doctor officially approved!', 
-      doctor: updateQuery.rows[0] 
-    });
-
-  } catch (error) {
-    console.error('Error approving doctor:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
 };
 
-module.exports = { getPendingDoctors, approveDoctor };
+// @desc    Get all doctors for moderation
+// @route   GET /api/admin/doctors
+const getDoctorsList = async (req, res) => {
+    try {
+        const doctors = await db.query(`
+            SELECT id, full_name, email, phone_number, clinic_id, status, created_at 
+            FROM users WHERE role = 'doctor' ORDER BY created_at DESC
+        `);
+        res.status(200).json(doctors.rows);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching doctors' });
+    }
+};
+
+// @desc    Update Doctor Status (Approve, Suspend, Restore)
+// @route   PUT /api/admin/doctors/:id/status
+const updateDoctorStatus = async (req, res) => {
+    try {
+        const { status } = req.body; // 'active', 'suspended', 'pending'
+        await db.query(`UPDATE users SET status = $1 WHERE id = $2`, [status, req.params.id]);
+        res.status(200).json({ message: `Doctor status updated to ${status}` });
+    } catch (error) {
+        res.status(500).json({ message: 'Error updating status' });
+    }
+};
+
+// @desc    Update System Commission Rate
+// @route   POST /api/admin/settings/commission
+const updateCommissionRate = async (req, res) => {
+    try {
+        const { percentage } = req.body;
+        await db.query(`
+            UPDATE system_settings SET setting_value = $1 WHERE setting_key = 'platform_commission_percent'
+        `, [percentage]);
+        res.status(200).json({ message: 'Platform commission updated successfully!' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error updating settings' });
+    }
+};
+
+// @desc    Get all recent transactions
+// @route   GET /api/admin/transactions
+const getTransactions = async (req, res) => {
+    try {
+        const orders = await db.query(`
+            SELECT o.id, o.total_amount, o.status, o.created_at, u.full_name as patient_name
+            FROM orders o JOIN users u ON o.patient_id = u.id ORDER BY o.created_at DESC LIMIT 50
+        `);
+        res.status(200).json(orders.rows);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching transactions' });
+    }
+};
+
+module.exports = { getDashboardStats, getDoctorsList, updateDoctorStatus, updateCommissionRate, getTransactions };
