@@ -20,11 +20,14 @@ const Home = () => {
   const userStr = localStorage.getItem('user');
   const currentUser = userStr ? JSON.parse(userStr) : null;
 
-  // The Smart Routing Logic
+// The Smart Routing Logic
   const handleTelehealthClick = () => {
     if (!currentUser) {
       // Guest: Must log in first
       navigate('/login');
+    } else if (currentUser.role === 'admin') {
+      // Admin: Go to command center
+      navigate('/admin');
     } else if (currentUser.role === 'doctor') {
       // Doctor: Go to their specific workspace
       navigate('/doctor-dashboard'); 
