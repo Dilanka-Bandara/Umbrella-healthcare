@@ -7,12 +7,13 @@ import {
   TrendingUp, ShoppingCart, Stethoscope, MessageSquare, FileSignature,
   RefreshCw, AlertTriangle, X, Percent, ChevronLeft, ChevronRight,
   UserPlus, FileText, ExternalLink, Files, Clock, Mail, Phone, Hash,
+  UserCheck,
 } from 'lucide-react';
 
 const API = 'http://localhost:5000/api/admin';
 const VERIFY_API = 'http://localhost:5000/api/verification';
 
-const AdminDashboard = () => {
+const AdminDashboardInner = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
 
@@ -147,20 +148,32 @@ const AdminDashboard = () => {
     setActiveDocUrl(null);
     try {
       const { data } = await axios.get(`${VERIFY_API}/${doctor.id}`, config);
+      const safe = data && typeof data === 'object' ? data : {};
       const docs = [];
-      if (data.medical_license_url) {
+      if (safe.medical_license_url) {
         docs.push({
           id: 'primary',
           doc_type: 'Medical License (registration)',
-          file_url: data.medical_license_url,
+          file_url: safe.medical_license_url,
         });
       }
-      (data.documents || []).forEach((d) => docs.push(d));
+      if (Array.isArray(safe.documents)) {
+        safe.documents.forEach((d) => {
+          if (d && d.file_url) docs.push(d);
+        });
+      }
       setApprovalsDocs(docs);
-      setActiveDocUrl(docs[0]?.file_url || null);
-      setApprovalsTarget({ ...doctor, ...data });
+      setActiveDocUrl(docs.length > 0 ? docs[0].file_url : null);
+      setApprovalsTarget({ ...doctor, ...safe });
     } catch (e) {
       console.error('Failed to load applicant docs', e);
+      // Fall back to the basic doctor object — still allow a decision,
+      // and surface its registration license if present.
+      const fallbackDocs = doctor.medical_license_url
+        ? [{ id: 'primary', doc_type: 'Medical License (registration)', file_url: doctor.medical_license_url }]
+        : [];
+      setApprovalsDocs(fallbackDocs);
+      setActiveDocUrl(fallbackDocs[0]?.file_url || null);
     }
   };
 
@@ -840,7 +853,7 @@ const AdminDashboard = () => {
                   {activeDocUrl ? (
                     <div className="w-full h-full flex flex-col">
                       <div className="flex-1 max-h-[600px] border border-gray-300 dark:border-gray-700 rounded-2xl overflow-hidden shadow-inner bg-white">
-                        {activeDocUrl.toLowerCase().split('?')[0].endsWith('.pdf') ? (
+                        {String(activeDocUrl).toLowerCase().split('?')[0].endsWith('.pdf') ? (
                           <iframe src={activeDocUrl} className="w-full h-full min-h-[440px]" title="Credential" />
                         ) : (
                           <img src={activeDocUrl} alt="Credential" className="w-full h-full object-contain p-2" />
@@ -1072,5 +1085,49 @@ const TrendChart = ({ data }) => {
     </div>
   );
 };
+
+/* Error boundary: prevents a single render error from blanking the whole page.
+   Instead it shows the error so you can see exactly what went wrong. */
+class AdminErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, message: '' };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, message: error?.message || 'Unknown error' };
+  }
+  componentDidCatch(error, info) {
+    console.error('AdminDashboard crashed:', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-6">
+          <div className="max-w-md w-full bg-white dark:bg-gray-900 border border-red-200 dark:border-red-900/40 rounded-2xl p-8 text-center shadow-sm">
+            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Something went wrong</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              The dashboard hit an error while rendering. Details are in the browser console.
+            </p>
+            <pre className="text-xs text-left bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 overflow-auto text-red-600 mb-4">
+              {this.state.message}
+            </pre>
+            <button onClick={() => window.location.reload()}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl text-sm">
+              Reload
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const AdminDashboard = () => (
+  <AdminErrorBoundary>
+    <AdminDashboardInner />
+  </AdminErrorBoundary>
+);
 
 export default AdminDashboard;
