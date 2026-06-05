@@ -15,6 +15,8 @@ const appointmentRoutes = require('./src/routes/appointmentRoutes');
 const messageRoutes = require('./src/routes/messageRoutes');
 const checkoutRoutes = require('./src/routes/checkoutRoutes');
 const orderRoutes = require('./src/routes/orderRoutes');
+const { backfillClinicIds } = require('./src/utils/clinicId');
+backfillClinicIds();
 
 // Initialize the app
 const app = express();
