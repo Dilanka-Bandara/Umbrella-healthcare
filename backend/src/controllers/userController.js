@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const db = require('../config/db');
 const jwt = require('jsonwebtoken');
+const { generateUniqueClinicId } = require('../utils/clinicId');
 
 // @desc    Register a new user (Patient, Doctor, Admin)
 // @route   POST /api/users/register
@@ -17,26 +18,56 @@ const registerUser = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        // --- NEW LOGIC: VERIFICATION ---
+        // --- VERIFICATION ---
         // Patients and Admins are verified instantly. Doctors must wait for approval.
         let is_verified = true;
+        let clinic_id = null;
+
         if (role === 'doctor') {
-            is_verified = false; 
-            
+            is_verified = false;
+
             // If they are a doctor but didn't provide a license, block the registration
             if (!medical_license_url) {
                 return res.status(400).json({ message: 'Doctors must provide a medical license document.' });
             }
+
+            // --- NEW: give every doctor a short, memorable Clinic ID (e.g. DOC-7777) ---
+            // Patients use this ID to connect to the doctor, so it must be unique.
+            clinic_id = await generateUniqueClinicId();
         }
 
-        const newUser = await db.query(
-            `INSERT INTO users (role, full_name, email, password_hash, phone_number, is_verified, medical_license_url) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, role, full_name, email, is_verified`,
-            [role, full_name, email, passwordHash, phone_number, is_verified, medical_license_url]
-        );
+        // Insert with a retry in case a duplicate clinic_id slips through under
+        // a rare race condition (two doctors registering at the exact same moment).
+        let newUser;
+        for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+                newUser = await db.query(
+                    `INSERT INTO users (role, full_name, email, password_hash, phone_number, is_verified, medical_license_url, clinic_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                     RETURNING id, role, full_name, email, is_verified, clinic_id`,
+                    [role, full_name, email, passwordHash, phone_number, is_verified, medical_license_url, clinic_id]
+                );
+                break; // success
+            } catch (insertErr) {
+                // 23505 = unique_violation in PostgreSQL
+                if (insertErr.code === '23505' && role === 'doctor') {
+                    clinic_id = await generateUniqueClinicId(); // pick a new one and retry
+                    continue;
+                }
+                throw insertErr; // any other error bubbles up
+            }
+        }
+
+        if (!newUser) {
+            return res.status(500).json({ message: 'Could not complete registration. Please try again.' });
+        }
 
         res.status(201).json({
-            message: role === 'doctor' ? 'Registration successful! Please wait for admin approval.' : 'User registered successfully!',
+            message: role === 'doctor'
+                ? 'Registration successful! Please wait for admin approval.'
+                : 'User registered successfully!',
+            // Surface the clinic ID so the doctor can see & save it right away
+            clinic_id: newUser.rows[0].clinic_id,
             user: newUser.rows[0]
         });
 
@@ -54,7 +85,7 @@ const loginUser = async (req, res) => {
 
         // 1. Check if the user exists in the database
         const userResult = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-        
+
         if (userResult.rows.length === 0) {
             return res.status(400).json({ message: 'Invalid email or password' });
         }
@@ -63,23 +94,23 @@ const loginUser = async (req, res) => {
 
         // 2. Compare the typed password with the scrambled password in the database
         const isMatch = await bcrypt.compare(password, user.password_hash);
-        
+
         if (!isMatch) {
             return res.status(400).json({ message: 'Invalid email or password' });
         }
 
-        // --- NEW LOGIC: BLOCK UNVERIFIED DOCTORS ---
+        // --- BLOCK UNVERIFIED DOCTORS ---
         if (user.role === 'doctor' && user.is_verified === false) {
-            return res.status(403).json({ 
-                message: 'Your doctor account is pending admin approval. Please check back later.' 
+            return res.status(403).json({
+                message: 'Your doctor account is pending admin approval. Please check back later.'
             });
         }
 
         // 3. Generate the Digital Badge (JWT)
         // We pack the user's ID and Role inside the token so the frontend knows who they are
         const token = jwt.sign(
-            { id: user.id, role: user.role }, 
-            process.env.JWT_SECRET, 
+            { id: user.id, role: user.role },
+            process.env.JWT_SECRET,
             { expiresIn: '1d' } // The token expires in 1 day for security
         );
 
@@ -91,7 +122,8 @@ const loginUser = async (req, res) => {
                 id: user.id,
                 role: user.role,
                 full_name: user.full_name,
-                email: user.email
+                email: user.email,
+                clinic_id: user.clinic_id // doctors get their ID in the session too
             }
         });
 
@@ -113,7 +145,7 @@ const updateProfilePicture = async (req, res) => {
         }
 
         const updatedUser = await db.query(
-            `UPDATE users SET profile_picture_url = $1, updated_at = NOW() 
+            `UPDATE users SET profile_picture_url = $1, updated_at = NOW()
              WHERE id = $2 RETURNING id, full_name, role, profile_picture_url`,
             [profile_picture_url, userId]
         );
@@ -132,5 +164,5 @@ const updateProfilePicture = async (req, res) => {
 module.exports = {
     registerUser,
     loginUser,
-    updateProfilePicture // NEW
+    updateProfilePicture
 };
