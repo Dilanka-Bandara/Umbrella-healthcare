@@ -29,34 +29,95 @@ const EncounterRoom = () => {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  // --- HTML5 SMART PEN CANVAS ---
+  // =========================================================
+  // 🚨 SMART PEN CANVAS ENGINE (Synchronous & Touch-Enabled)
+  // =========================================================
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [hasDrawn, setHasDrawn] = useState(false);
 
-  const startDrawing = ({ nativeEvent }) => {
-    const { offsetX, offsetY } = nativeEvent;
-    const context = canvasRef.current.getContext('2d');
-    context.beginPath();
-    context.moveTo(offsetX, offsetY);
+  // Setup the context securely
+  const getContext = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = '#0f172a'; // Deep dark ink
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    return ctx;
+  };
+
+  // Safe coordinates for both Mouse and iPad/Touch
+  const getCoordinates = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    let clientX = e.clientX;
+    let clientY = e.clientY;
+    
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    }
+
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
+    };
+  };
+
+  const startDrawing = (e) => {
+    const { x, y } = getCoordinates(e);
+    const ctx = getContext();
+    if (!ctx) return;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
     setIsDrawing(true);
+    setHasDrawn(true);
   };
-  const draw = ({ nativeEvent }) => {
+  
+  const draw = (e) => {
     if (!isDrawing) return;
-    const { offsetX, offsetY } = nativeEvent;
-    const context = canvasRef.current.getContext('2d');
-    context.lineTo(offsetX, offsetY);
-    context.stroke();
+    e.preventDefault(); // Prevents screen scrolling while drawing on mobile
+    const { x, y } = getCoordinates(e);
+    const ctx = getContext();
+    if (!ctx) return;
+    ctx.lineTo(x, y);
+    ctx.stroke();
   };
+  
   const stopDrawing = () => {
     if (!isDrawing) return;
-    const context = canvasRef.current.getContext('2d');
-    context.closePath();
+    const ctx = getContext();
+    if (ctx) ctx.closePath();
     setIsDrawing(false);
   };
+  
   const clearCanvas = () => {
     const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
-    context.clearRect(0, 0, canvas.width, canvas.height);
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasDrawn(false);
+  };
+
+  // 🚨 NEW: Synchronous Capture Engine
+  // Grabs the image instantly before React re-renders and clears the buffer
+  const captureCanvasSynchronously = () => {
+    if (!hasDrawn || !canvasRef.current) return null;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    
+    // Force a solid white background BEHIND the drawn lines right before saving
+    ctx.globalCompositeOperation = 'destination-over';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalCompositeOperation = 'source-over'; // Reset to default
+    
+    // Grab Base64 data instantly
+    return canvas.toDataURL('image/png');
   };
 
   const handleFileUpload = async (event) => {
@@ -83,7 +144,7 @@ const EncounterRoom = () => {
   // --- ADVANCED eRx CART SYSTEM ---
   const [rxCart, setRxCart] = useState([]);
   const [medSearch, setMedSearch] = useState('');
-  const [pharmacyDatabase, setPharmacyDatabase] = useState([]); // 🚨 NEW: Dynamic DB State
+  const [pharmacyDatabase, setPharmacyDatabase] = useState([]); 
   const [rxForm, setRxForm] = useState({ amount: 1, frequency: '2x', timing: 'Morning & Evening', meal: 'After Meal', durationDays: 7 });
 
   const filteredMeds = medSearch ? pharmacyDatabase.filter(m => m.name.toLowerCase().includes(medSearch.toLowerCase())) : [];
@@ -106,7 +167,6 @@ const EncounterRoom = () => {
 
   const removeRx = (index) => setRxCart(rxCart.filter((_, i) => i !== index));
 
-  // --- Real-time Chat & DB Init States ---
   const [message, setMessage] = useState('');
   const [chatLog, setChatLog] = useState([]);
   const messagesEndRef = useRef(null);
@@ -123,11 +183,9 @@ const EncounterRoom = () => {
 
     if (isDoctor) {
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      // 1. Fetch Patient History
       axios.get(`http://localhost:5000/api/consultations/history/${targetId}`, config)
            .then(res => setPatientHistory(res.data)).catch(console.error);
            
-      // 2. 🚨 FETCH REAL MEDICINES INVENTORY FROM DB
       axios.get(`http://localhost:5000/api/pharmacy/inventory`, config)
            .then(res => setPharmacyDatabase(res.data)).catch(console.error);
     }
@@ -150,21 +208,47 @@ const EncounterRoom = () => {
     alert("Record loaded into editor. Make your changes and click Save.");
   };
 
+  // =========================================================
+  // 🚨 THE MASTER SAVE FUNCTION 
+  // =========================================================
   const handleFinalizeConsultation = async () => {
     if (!symptoms || !diagnosis) return alert("Please fill out symptoms and diagnosis.");
+    
+    // 1. CAPTURE CANVAS INSTANTLY BEFORE UI RE-RENDERS
+    const base64Image = captureCanvasSynchronously();
+    
+    // 2. NOW it is safe to trigger the loading state
     setIsSaving(true);
     
     try {
       const config = { headers: { Authorization: `Bearer ${token}` } };
+      let finalFileUrls = sessionFiles.map(file => file.url);
       
+      // 3. Convert the safely captured Base64 string to a File and upload
+      if (base64Image) {
+        try {
+          const fetchRes = await fetch(base64Image);
+          const blob = await fetchRes.blob();
+          
+          const formData = new FormData();
+          formData.append('document', blob, 'doctor-handwritten-note.png');
+          
+          const uploadRes = await axios.post('http://localhost:5000/api/upload', formData, {
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+          });
+          
+          finalFileUrls.push(uploadRes.data.file_url);
+        } catch (canvasErr) {
+          console.error("Failed to upload canvas sketch to Cloudinary", canvasErr);
+        }
+      }
+
       if (editingId) {
         await axios.put(`http://localhost:5000/api/consultations/record/${editingId}`, { symptoms_notes: symptoms, diagnosis: diagnosis }, config);
         alert("Medical Record updated successfully!");
       } else {
-        const fileUrlsOnly = sessionFiles.map(file => file.url);
-        
         const recordRes = await axios.post('http://localhost:5000/api/consultations/record', {
-          patient_id: targetId, symptoms_notes: symptoms, diagnosis: diagnosis, file_urls: fileUrlsOnly 
+          patient_id: targetId, symptoms_notes: symptoms, diagnosis: diagnosis, file_urls: finalFileUrls 
         }, config);
         
         const consultId = recordRes.data.consultation_id;
@@ -183,7 +267,7 @@ const EncounterRoom = () => {
             }
           }
         }
-        alert(`Session Complete! Saved to History & ${rxCart.length} Prescriptions queued.`);
+        alert(`Session Complete! Saved to History & Prescriptions queued.`);
       }
       navigate('/doctor-dashboard');
     } catch (error) {
@@ -208,8 +292,9 @@ const EncounterRoom = () => {
             <span className="flex h-3 w-3 relative"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span></span>
             <h1 className="font-bold text-lg tracking-wider uppercase">Live Clinical Workspace</h1>
           </div>
-          <button onClick={handleFinalizeConsultation} disabled={isSaving} className="bg-white text-emerald-700 px-6 py-2 rounded-full font-bold hover:bg-emerald-50 transition-colors shadow-sm disabled:opacity-50">
-            {isSaving ? 'Saving to Database...' : (editingId ? 'Save Changes' : 'Sign & Complete')}
+          <button onClick={handleFinalizeConsultation} disabled={isSaving} className="bg-white text-emerald-700 px-6 py-2 rounded-full font-bold hover:bg-emerald-50 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2">
+            {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isSaving ? 'Processing & Saving...' : (editingId ? 'Save Changes' : 'Sign & Complete')}
           </button>
         </div>
 
@@ -226,7 +311,7 @@ const EncounterRoom = () => {
 
             {/* TAB: Current Notes & Tools */}
             {activeTab === 'notes' && (
-              <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
+              <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-2">
                 <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm">
                   <div className="space-y-4">
                     <div>
@@ -240,44 +325,51 @@ const EncounterRoom = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Smart Pen */}
-                  <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 shadow-sm flex flex-col">
-                    <div className="flex justify-between items-center mb-2">
-                      <label className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                        <PenTool className="h-4 w-4" /> Smart Pen Drawing
-                      </label>
-                      <button onClick={clearCanvas} className="text-xs text-red-500 font-bold hover:underline">Clear Canvas</button>
-                    </div>
-                    <canvas 
-                      ref={canvasRef} onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
-                      className="w-full h-40 bg-gray-50 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl cursor-crosshair touch-none"
-                      width={400} height={160}
-                    />
-                  </div>
-
-                  {/* Cloudinary Live Upload */}
-                  <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 shadow-sm flex flex-col justify-between">
-                    <label className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-2">
+                {/* 🚨 NEW LAYOUT: Upload First, then massive Canvas */}
+                <div className="flex flex-col gap-4 pb-4">
+                  
+                  {/* 1. Cloudinary Live Upload */}
+                  <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm flex flex-col justify-between">
+                    <label className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-3">
                       <Upload className="h-4 w-4" /> Attach Documents & Scans
                     </label>
                     <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,.pdf" />
                     <button 
                       onClick={() => fileInputRef.current.click()} disabled={isUploading}
-                      className="flex-1 border-2 border-dashed border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/10 hover:bg-emerald-100 text-emerald-700 p-4 rounded-xl flex flex-col items-center justify-center transition-colors disabled:opacity-50"
+                      className="w-full border-2 border-dashed border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/10 hover:bg-emerald-100 text-emerald-700 p-4 rounded-xl flex flex-col items-center justify-center transition-colors disabled:opacity-50"
                     >
                       {isUploading ? <Loader2 className="h-6 w-6 animate-spin mb-1" /> : <Upload className="h-6 w-6 mb-1" />}
-                      <span className="text-sm font-bold">{isUploading ? 'Uploading...' : 'Upload File'}</span>
+                      <span className="text-sm font-bold">{isUploading ? 'Uploading...' : 'Upload File (PDF, JPEG, PNG)'}</span>
                     </button>
                     {sessionFiles.length > 0 && (
-                      <div className="mt-2 space-y-1 overflow-y-auto max-h-20">
+                      <div className="mt-3 flex flex-wrap gap-2">
                         {sessionFiles.map((f, idx) => (
-                          <div key={idx} className="flex items-center gap-2 text-xs bg-gray-50 dark:bg-gray-800 p-2 rounded-md">
-                            <FileImage className="h-3 w-3 text-emerald-500" /> <span className="truncate">{f.name}</span>
+                          <div key={idx} className="flex items-center gap-2 text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded-lg font-medium shadow-sm border border-gray-200 dark:border-gray-700">
+                            <FileImage className="h-4 w-4 text-emerald-500" /> <span className="truncate max-w-[150px]">{f.name}</span>
                           </div>
                         ))}
                       </div>
                     )}
+                  </div>
+
+                  {/* 2. Smart Pen */}
+                  <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm flex flex-col">
+                    <div className="flex justify-between items-center mb-3">
+                      <label className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                        <PenTool className="h-4 w-4" /> Smart Pen Digital Drawing Board
+                        {hasDrawn && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-black tracking-wider uppercase ml-2 animate-pulse">Ink Detected</span>}
+                      </label>
+                      <button onClick={clearCanvas} className="text-xs bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg font-bold transition-colors">Clear Canvas</button>
+                    </div>
+                    {/* Size dramatically increased to h-96 */}
+                    <canvas 
+                      ref={canvasRef} 
+                      onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
+                      onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing}
+                      className="w-full h-96 bg-white border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl cursor-crosshair touch-none shadow-inner"
+                      width={800} height={400}
+                    />
+                    <p className="text-[10px] text-gray-400 mt-2 text-center">Draw notes directly on the pad. Your drawing will be saved automatically upon completion.</p>
                   </div>
                 </div>
               </div>
@@ -312,7 +404,7 @@ const EncounterRoom = () => {
             )}
             
             {/* Embedded Live Chat Module */}
-            <div className="h-56 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col">
+            <div className="h-56 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col shrink-0">
               <div className="p-3 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 rounded-t-2xl font-bold text-sm flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-emerald-600"/> Patient Communication
               </div>
@@ -336,14 +428,13 @@ const EncounterRoom = () => {
           </div>
 
           {/* RIGHT: e-Prescribing (eRx) Panel */}
-          <div className="w-[450px] bg-white dark:bg-gray-900 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 flex flex-col shadow-sm overflow-hidden">
+          <div className="w-[450px] bg-white dark:bg-gray-900 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 flex flex-col shadow-sm overflow-hidden shrink-0">
             <div className="p-5 bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-100 dark:border-emerald-800/50">
               <h3 className="font-bold text-lg flex items-center gap-2 text-emerald-700 dark:text-emerald-400"><Pill className="h-5 w-5"/> Smart e-Prescribe</h3>
               <p className="text-xs text-emerald-600 mt-1">Structured dosage ensures accurate pharmacy limits.</p>
             </div>
             
             <div className="p-5 space-y-5 flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
-              {/* Search Medicine */}
               <div className="relative">
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Search Medicine</label>
                 <div className="relative">
@@ -361,7 +452,6 @@ const EncounterRoom = () => {
                 )}
               </div>
 
-              {/* Dosage Settings */}
               <div className="grid grid-cols-2 gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Amount</label>
@@ -423,7 +513,7 @@ const EncounterRoom = () => {
                   <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Queued Prescriptions ({rxCart.length})</h4>
                   <div className="space-y-2">
                     {rxCart.map((rx, idx) => (
-                      <div key={idx} className="bg-white border border-emerald-100 p-3 rounded-xl relative group">
+                      <div key={idx} className="bg-white border border-emerald-100 p-3 rounded-xl relative group shadow-sm">
                         <p className="font-bold text-sm pr-8">{rx.medicine_name}</p>
                         <p className="text-xs text-gray-500 mt-1 italic">"{rx.instructions}"</p>
                         <p className="text-[10px] font-bold text-emerald-600 uppercase mt-2">Total Prescribed: {rx.total_quantity}</p>
