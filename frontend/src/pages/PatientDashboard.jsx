@@ -61,11 +61,19 @@ const PatientDashboard = () => {
           <div className="mt-6 flex items-center gap-2 text-white font-bold text-sm">Connect Now <ArrowRight className="h-4 w-4" /></div>
         </button>
 
-        <button onClick={() => navigate('/pharmacy')} className="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-3xl shadow-lg shadow-indigo-500/20 text-left relative overflow-hidden group hover:scale-[1.02] transition-transform">
+        <button onClick={() => navigate('/prescription-cart')} className="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-3xl shadow-lg shadow-indigo-500/20 text-left relative overflow-hidden group hover:scale-[1.02] transition-transform">
           <div className="absolute -right-6 -top-6 text-white/20 group-hover:scale-110 transition-transform"><ShoppingBag className="h-32 w-32" /></div>
           <div className="bg-white/20 w-fit p-3 rounded-2xl mb-4 backdrop-blur-sm"><ShoppingBag className="h-6 w-6 text-white" /></div>
-          <h2 className="text-2xl font-bold text-white mb-1">E-Pharmacy Cart</h2>
+          <h2 className="text-2xl font-bold text-white mb-1">My Prescriptions</h2>
           <p className="text-indigo-50 text-sm">Buy pending prescriptions & check limits.</p>
+          <div className="mt-6 flex items-center gap-2 text-white font-bold text-sm">Open Cart <ArrowRight className="h-4 w-4" /></div>
+        </button>
+
+        <button onClick={() => navigate('/pharmacy')} className="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 rounded-3xl shadow-lg shadow-emerald-500/20 text-left relative overflow-hidden group hover:scale-[1.02] transition-transform">
+          <div className="absolute -right-6 -top-6 text-white/20 group-hover:scale-110 transition-transform"><ShoppingBag className="h-32 w-32" /></div>
+          <div className="bg-white/20 w-fit p-3 rounded-2xl mb-4 backdrop-blur-sm"><ShoppingBag className="h-6 w-6 text-white" /></div>
+          <h2 className="text-2xl font-bold text-white mb-1">Shop Pharmacy</h2>
+          <p className="text-emerald-50 text-sm">Browse & buy medicines, creams & health items.</p>
           <div className="mt-6 flex items-center gap-2 text-white font-bold text-sm">Open Store <ArrowRight className="h-4 w-4" /></div>
         </button>
 

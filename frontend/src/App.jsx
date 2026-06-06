@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import PatientDashboard from './pages/PatientDashboard';
-import MedicalRecords from './pages/MedicalRecords'; 
+import MedicalRecords from './pages/MedicalRecords';
 import UserProfile from './pages/UserProfile';
 import Register from './pages/Register';
 import Login from './pages/Login';
@@ -15,11 +15,11 @@ import PharmacyCart from './pages/PharmacyCart';
 import Checkout from './pages/Checkout';
 // 🚨 NEW: Import the Doctor Review page properly
 import DoctorReview from './pages/DoctorReview';
+// E-commerce storefront
 import Pharmacy from './pages/Pharmacy';
+import PharmacyProduct from './pages/PharmacyProduct';
 import PharmacyCheckout from './pages/PharmacyCheckout';
 import PharmacyOrders from './pages/PharmacyOrders';
-
-
 
 
 // --- THE SMART HOME COMPONENT ---
@@ -46,10 +46,10 @@ const Home = () => {
       navigate('/admin');
     } else if (currentUser.role === 'doctor') {
       // Doctor: Go to their specific workspace
-      navigate('/doctor-dashboard'); 
+      navigate('/doctor-dashboard');
     } else {
       // Patient: Go to their medical dashboard
-      navigate('/dashboard'); 
+      navigate('/dashboard');
     }
   };
 
@@ -60,25 +60,25 @@ const Home = () => {
           🚀 24/7 Digital Pharmacy & Telehealth
         </span>
       </div>
-      
+
       <h1 className="text-5xl md:text-6xl font-extrabold text-gray-900 dark:text-white mb-6 text-center tracking-tight max-w-4xl">
         Your Health, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-500">Delivered.</span>
       </h1>
-      
+
       <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 mb-10 text-center max-w-2xl leading-relaxed">
         Get your prescriptions and daily medical needs delivered to your door in hours. Consult with top-tier verified doctors instantly.
       </p>
-      
+
       <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-        <button 
-          onClick={() => navigate('/shop')}
+        <button
+          onClick={() => navigate('/pharmacy')}
           className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 px-8 rounded-full transition-all shadow-lg shadow-blue-500/30"
         >
           Shop Medicines
         </button>
-        
+
         {/* The Smart Button */}
-        <button 
+        <button
           onClick={handleTelehealthClick}
           className="w-full sm:w-auto bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 font-semibold py-3.5 px-8 rounded-full transition-all shadow-sm"
         >
@@ -89,15 +89,12 @@ const Home = () => {
   );
 };
 
-// Placeholders for future sprints
-const Shop = () => <div className="p-8 text-center text-gray-900 dark:text-white text-2xl font-bold mt-10">Medicine Catalog 💊</div>;
-
 function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 font-sans transition-colors duration-200">
         <Navbar />
-        
+
         <main>
           <Routes>
             {/* Standard Routes */}
@@ -108,23 +105,27 @@ function App() {
             <Route path="/profile" element={<UserProfile />} />
             <Route path="/register" element={<Register />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/shop" element={<Shop />} />
             <Route path="/connect" element={<ConnectDoctor />} />
             <Route path="/message-hub" element={<MessageHub />} />
             <Route path="/encounter/:targetId" element={<EncounterRoom />} />
-            <Route path="/pharmacy" element={<PharmacyCart />} />
+
+            {/* Prescription cart (medicines a doctor prescribed in a consultation) */}
+            <Route path="/prescription-cart" element={<PharmacyCart />} />
             <Route path="/checkout" element={<Checkout />} />
-            
+
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/review" element={<DoctorReview />} />
 
+            {/* E-commerce Pharmacy Storefront */}
+            <Route path="/shop" element={<Pharmacy />} />
             <Route path="/pharmacy" element={<Pharmacy />} />
+            <Route path="/pharmacy/product/:id" element={<PharmacyProduct />} />
             <Route path="/pharmacy/checkout" element={<PharmacyCheckout />} />
             <Route path="/pharmacy/orders" element={<PharmacyOrders />} />
           </Routes>
         </main>
-        
+
       </div>
     </Router>
   );

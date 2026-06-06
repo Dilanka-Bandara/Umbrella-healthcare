@@ -36,7 +36,7 @@ const Checkout = () => {
         <AlertCircle className="h-16 w-16 text-gray-400 mb-4" />
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Items in Checkout</h2>
         <p className="text-gray-500 mb-4 text-sm">Please return to the pharmacy to select medications.</p>
-        <button onClick={() => navigate('/pharmacy')} className="text-indigo-600 font-bold hover:underline">Return to Pharmacy</button>
+        <button onClick={() => navigate('/prescription-cart')} className="text-indigo-600 font-bold hover:underline">Return to Pharmacy</button>
       </div>
     );
   }
@@ -91,7 +91,7 @@ const Checkout = () => {
         
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
-          <button onClick={() => navigate('/pharmacy')} className="p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl hover:bg-gray-100 transition-colors shadow-sm">
+          <button onClick={() => navigate('/prescription-cart')} className="p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl hover:bg-gray-100 transition-colors shadow-sm">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
