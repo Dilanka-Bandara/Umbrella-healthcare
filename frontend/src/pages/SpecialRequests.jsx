@@ -102,7 +102,7 @@ const SpecialRequests = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => navigate(`/messages?patient=${r.patient_user_id}`)}
+                    <button onClick={() => navigate(`/encounter/${r.patient_user_id}`)}
                       className="bg-indigo-50 text-indigo-600 border border-indigo-200 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1">
                       <MessageSquare className="h-3.5 w-3.5" /> Chat
                     </button>

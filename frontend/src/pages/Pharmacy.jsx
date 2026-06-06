@@ -234,7 +234,7 @@ const Pharmacy = () => {
           onChat={(doctorId) => {
             setPermissionModal(null);
             // Open your existing chat with this doctor
-            navigate(`/messages?doctor=${doctorId}`);
+            navigate(`/encounter/${doctorId}`);
           }}
         />
       )}
