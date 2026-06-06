@@ -15,6 +15,12 @@ import PharmacyCart from './pages/PharmacyCart';
 import Checkout from './pages/Checkout';
 // 🚨 NEW: Import the Doctor Review page properly
 import DoctorReview from './pages/DoctorReview';
+import Pharmacy from './pages/Pharmacy';
+import PharmacyCheckout from './pages/PharmacyCheckout';
+import PharmacyOrders from './pages/PharmacyOrders';
+
+
+
 
 // --- THE SMART HOME COMPONENT ---
 const Home = () => {
@@ -112,6 +118,10 @@ function App() {
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/review" element={<DoctorReview />} />
+
+            <Route path="/pharmacy" element={<Pharmacy />} />
+            <Route path="/pharmacy/checkout" element={<PharmacyCheckout />} />
+            <Route path="/pharmacy/orders" element={<PharmacyOrders />} />
           </Routes>
         </main>
         
