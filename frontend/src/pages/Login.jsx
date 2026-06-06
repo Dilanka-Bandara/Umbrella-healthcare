@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { LogIn, Mail, Lock, Loader2, ArrowLeft } from 'lucide-react';
 import axios from 'axios';
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from;
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -37,8 +39,12 @@ const Login = () => {
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       
-      // 4. Smart Routing: Send them to their specific dashboard!
-      if (user.role === 'admin') {
+      // 4. Smart Routing.
+      //    If they were sent here from a protected page (e.g. checkout),
+      //    bounce them back there. Otherwise go to their role dashboard.
+      if (from) {
+        navigate(from, { replace: true });
+      } else if (user.role === 'admin') {
         navigate('/admin');
       } else if (user.role === 'doctor') {
         navigate('/doctor-dashboard');
