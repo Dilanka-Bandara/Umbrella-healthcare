@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 // 🚨 IMPORTED NEW ICONS: Filter, ChevronLeft, ChevronRight
 import { Users, Calendar, QrCode, ClipboardList, Search, User, ArrowRight, Video, Loader2, Database, Upload, FileText, X, History, CheckCircle, MessageCircle, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import axios from 'axios';
+import SpecialRequests from './SpecialRequests';
 
 const DoctorDashboard = () => {
   const navigate = useNavigate();
@@ -354,7 +355,7 @@ const DoctorDashboard = () => {
           </div>
         </div>
       </div>
-
+      <SpecialRequests />
       {/* THE PATIENT VAULT MODAL (UNTOUCHED) */}
       {selectedVaultPatient && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
