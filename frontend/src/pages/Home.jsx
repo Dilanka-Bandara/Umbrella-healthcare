@@ -3,20 +3,27 @@ import { useNavigate } from 'react-router-dom';
 
 const Home = () => {
   const navigate = useNavigate();
+  
+  // Safely check if a user is logged in
   const userStr = localStorage.getItem('user');
   let currentUser = null;
-
   try {
     currentUser = userStr && userStr !== "undefined" ? JSON.parse(userStr) : null;
   } catch (error) {
     currentUser = null;
   }
 
+  // 🚨 SMART ROUTING: Force login for telehealth!
   const handleTelehealthClick = () => {
-    if (!currentUser) navigate('/login');
-    else if (currentUser.role === 'admin') navigate('/admin');
-    else if (currentUser.role === 'doctor') navigate('/doctor-dashboard'); 
-    else navigate('/dashboard'); 
+    if (!currentUser) {
+      navigate('/login'); // Guest -> Force Login
+    } else if (currentUser.role === 'admin') {
+      navigate('/admin'); // Admin -> Command Center
+    } else if (currentUser.role === 'doctor') {
+      navigate('/doctor-dashboard'); // Doctor -> Workspace
+    } else {
+      navigate('/dashboard'); // Patient -> Portal
+    }
   };
 
   return (
