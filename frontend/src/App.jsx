@@ -33,7 +33,7 @@ function App() {
         
         <main>
           <Routes>
-            {/* 🌐 Tier 1: Public E-Commerce & Auth (No Login Required to view) */}
+            {/* 🌐 Tier 1: Public E-Commerce & Auth */}
             <Route path="/" element={<Home />} />
             <Route path="/shop" element={<Shop />} />
             <Route path="/register" element={<Register />} />
