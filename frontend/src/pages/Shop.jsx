@@ -9,10 +9,18 @@ const Shop = () => {
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
+  // Safely check if the user is authenticated
+  const userStr = localStorage.getItem('user');
+  let currentUser = null;
+  try {
+    currentUser = userStr && userStr !== "undefined" ? JSON.parse(userStr) : null;
+  } catch (e) {
+    currentUser = null;
+  }
+
   useEffect(() => {
     const fetchInventory = async () => {
       try {
-        // Public route: no token required!
         const res = await axios.get('http://localhost:5000/api/pharmacy/inventory');
         setInventory(res.data);
       } catch (error) {
@@ -23,6 +31,27 @@ const Shop = () => {
     };
     fetchInventory();
   }, []);
+
+  // 🚨 NEW LOGIC: Require Login to add items to cart!
+  const handleAddToCart = (med) => {
+    if (!currentUser) {
+      alert("Please log in or create an account to purchase medications securely.");
+      navigate('/login');
+      return;
+    }
+    // If logged in, proceed with cart logic
+    alert(`${med.name} added to your cart!`);
+  };
+
+  // 🚨 NEW LOGIC: Require Login to request telehealth prescriptions!
+  const handleConsultDoctor = () => {
+    if (!currentUser) {
+      alert("Please log in to consult a doctor for this prescription medication.");
+      navigate('/login');
+      return;
+    }
+    navigate('/connect');
+  };
 
   const filteredMeds = inventory.filter(med => 
     med.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -71,7 +100,6 @@ const Shop = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredMeds.map((med) => {
-              // Simulate Rx (Prescription Required) vs OTC (Over The Counter) based on name
               const isRx = med.name.toLowerCase().includes('antibiotic') || med.name.toLowerCase().includes('pressure');
 
               return (
@@ -112,14 +140,14 @@ const Shop = () => {
                     {/* Action Buttons */}
                     {isRx ? (
                       <button 
-                        onClick={() => navigate('/connect')}
+                        onClick={handleConsultDoctor}
                         className="w-full bg-white dark:bg-gray-800 border-2 border-blue-100 dark:border-blue-900/50 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors"
                       >
                         Consult Doctor <ArrowRight className="h-4 w-4" />
                       </button>
                     ) : (
                       <button 
-                        onClick={() => alert('Added to E-Commerce Cart! (OTC functionality ready)')}
+                        onClick={() => handleAddToCart(med)}
                         className="w-full bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-gray-900 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors shadow-md"
                       >
                         <ShoppingBag className="h-4 w-4" /> Add to Cart
