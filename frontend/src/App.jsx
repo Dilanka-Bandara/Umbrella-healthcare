@@ -35,6 +35,7 @@ import DoctorReview from './pages/DoctorReview';
 
 function App() {
   return (
+    <CartProvider>
     <Router>
       <Routes>
         
@@ -74,6 +75,7 @@ function App() {
 
       </Routes>
     </Router>
+    </CartProvider>
   );
 }
 
