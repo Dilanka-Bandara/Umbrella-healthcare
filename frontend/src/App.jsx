@@ -31,6 +31,8 @@ import EncounterRoom from './pages/EncounterRoom';
 import AdminDashboard from './pages/AdminDashboard';
 import DoctorReview from './pages/DoctorReview';
 
+import MyOrders from './pages/MyOrders';
+
 function App() {
   return (
     <Router>
@@ -60,6 +62,9 @@ function App() {
           {/* 🚨 THE FIX: Reconnected the Prescription Cart to the Dashboard button! */}
           <Route path="/prescription-cart" element={<PharmacyCart />} />
           <Route path="/checkout" element={<Checkout />} />
+
+          {/* 🚨 THE FIX: Reconnected the missing Orders Page! */}
+          <Route path="/my-orders" element={<MyOrders />} />
           
           <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
           <Route path="/encounter/:targetId" element={<EncounterRoom />} />
