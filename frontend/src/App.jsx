@@ -63,7 +63,7 @@ function App() {
           <Route path="/checkout" element={<Checkout />} />
           
           {/* Reconnected the Orders Page */}
-          <Route path="/my-orders" element={<MyOrders />} />
+          <Route path="/pharmacy/orders" element={<MyOrders />} />
           
           <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
           <Route path="/encounter/:targetId" element={<EncounterRoom />} />
