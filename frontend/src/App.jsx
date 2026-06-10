@@ -22,6 +22,8 @@ import MedicalRecords from './pages/MedicalRecords';
 import UserProfile from './pages/UserProfile';
 import ConnectDoctor from './pages/ConnectDoctor';
 import MessageHub from './pages/MessageHub';
+// 🚨 THE BUG FIX: The missing import is right here!
+import MyOrders from './pages/MyOrders';
 
 // --- Doctor Pages ---
 import DoctorDashboard from './pages/DoctorDashboard';
@@ -30,8 +32,6 @@ import EncounterRoom from './pages/EncounterRoom';
 // --- Admin Pages ---
 import AdminDashboard from './pages/AdminDashboard';
 import DoctorReview from './pages/DoctorReview';
-
-import MyOrders from './pages/MyOrders';
 
 function App() {
   return (
@@ -59,11 +59,10 @@ function App() {
           <Route path="/connect" element={<ConnectDoctor />} />
           <Route path="/message-hub" element={<MessageHub />} />
           
-          {/* 🚨 THE FIX: Reconnected the Prescription Cart to the Dashboard button! */}
           <Route path="/prescription-cart" element={<PharmacyCart />} />
           <Route path="/checkout" element={<Checkout />} />
-
-          {/* 🚨 THE FIX: Reconnected the missing Orders Page! */}
+          
+          {/* Reconnected the Orders Page */}
           <Route path="/my-orders" element={<MyOrders />} />
           
           <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
