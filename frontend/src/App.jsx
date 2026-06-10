@@ -1,6 +1,9 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
+// THE CRITICAL IMPORT: This is what prevents the White Screen!
+import { CartProvider } from './context/CartContext';
+
 // --- The Enterprise Layouts ---
 import PublicLayout from './layouts/PublicLayout';
 import AppLayout from './layouts/AppLayout';
@@ -22,7 +25,6 @@ import MedicalRecords from './pages/MedicalRecords';
 import UserProfile from './pages/UserProfile';
 import ConnectDoctor from './pages/ConnectDoctor';
 import MessageHub from './pages/MessageHub';
-// 🚨 THE BUG FIX: The missing import is right here!
 import MyOrders from './pages/MyOrders';
 
 // --- Doctor Pages ---
@@ -34,47 +36,46 @@ import AdminDashboard from './pages/AdminDashboard';
 import DoctorReview from './pages/DoctorReview';
 
 function App() {
+  // 🛒 The Global Cart Engine now wraps the whole app safely outside the return statement
   return (
     <CartProvider>
-    <Router>
-      <Routes>
-        
-        {/* 🌐 TIER 1: PUBLIC FRONT-DOOR */}
-        <Route element={<PublicLayout />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/login" element={<Login />} />
-        </Route>
+      <Router>
+        <Routes>
+          
+          {/* 🌐 TIER 1: PUBLIC FRONT-DOOR */}
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/login" element={<Login />} />
+          </Route>
 
-        {/* 🛒 TIER 2: PUBLIC PHARMACY STOREFRONT */}
-        <Route element={<PharmacyLayout />}>
-          <Route path="/shop" element={<Shop />} />
-          <Route path="/pharmacy" element={<Shop />} />
-        </Route>
+          {/* 🛒 TIER 2: PUBLIC PHARMACY STOREFRONT */}
+          <Route element={<PharmacyLayout />}>
+            <Route path="/shop" element={<Shop />} />
+            <Route path="/pharmacy" element={<Shop />} />
+          </Route>
 
-        {/* 🏥 TIER 3: SECURE MEDICAL PORTAL */}
-        <Route element={<AppLayout />}>
-          <Route path="/dashboard" element={<PatientDashboard />} />
-          <Route path="/records" element={<MedicalRecords />} />
-          <Route path="/profile" element={<UserProfile />} />
-          <Route path="/connect" element={<ConnectDoctor />} />
-          <Route path="/message-hub" element={<MessageHub />} />
-          
-          <Route path="/prescription-cart" element={<PharmacyCart />} />
-          <Route path="/checkout" element={<Checkout />} />
-          
-          {/* Reconnected the Orders Page */}
-          <Route path="/pharmacy/orders" element={<MyOrders />} />
-          
-          <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
-          <Route path="/encounter/:targetId" element={<EncounterRoom />} />
-          
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/review" element={<DoctorReview />} />
-        </Route>
+          {/* 🏥 TIER 3: SECURE MEDICAL PORTAL */}
+          <Route element={<AppLayout />}>
+            <Route path="/dashboard" element={<PatientDashboard />} />
+            <Route path="/records" element={<MedicalRecords />} />
+            <Route path="/profile" element={<UserProfile />} />
+            <Route path="/connect" element={<ConnectDoctor />} />
+            <Route path="/message-hub" element={<MessageHub />} />
+            
+            <Route path="/prescription-cart" element={<PharmacyCart />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/pharmacy/orders" element={<MyOrders />} />
+            
+            <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
+            <Route path="/encounter/:targetId" element={<EncounterRoom />} />
+            
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/review" element={<DoctorReview />} />
+          </Route>
 
-      </Routes>
-    </Router>
+        </Routes>
+      </Router>
     </CartProvider>
   );
 }
