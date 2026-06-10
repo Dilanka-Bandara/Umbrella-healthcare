@@ -38,6 +38,8 @@ const Shop = () => {
       navigate('/login');
       return;
     }
+    // 🚨 THE UPGRADE: Actually add the item to our new global cart!
+    addToCart(med);
     alert(`${med.name} added to your cart!`);
   };
 
