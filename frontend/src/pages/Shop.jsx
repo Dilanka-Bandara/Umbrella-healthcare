@@ -2,12 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Search, Pill, ShieldAlert, ArrowRight, ShoppingBag, Loader2, CheckCircle } from 'lucide-react';
+// 🚨 NEW: Import the Global Cart Engine
+import { useCart } from '../context/CartContext';
 
 const Shop = () => {
   const navigate = useNavigate();
   const [inventory, setInventory] = useState([]);
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  
+  // 🚨 UI State to show the green "Added!" checkmark
+  const [addedItems, setAddedItems] = useState({});
+
+  // 🚨 Connect to the Cart Engine
+  const { addToCart } = useCart();
 
   // Safely check authentication
   const userStr = localStorage.getItem('user');
@@ -38,9 +46,18 @@ const Shop = () => {
       navigate('/login');
       return;
     }
-    // 🚨 THE UPGRADE: Actually add the item to our new global cart!
-    addToCart(med);
-    alert(`${med.name} added to your cart!`);
+
+    // 🚨 THE FIX: Ensure the item always has a valid ID, regardless of how the database names it.
+    const safeMed = { ...med, id: med.id || med.medicine_id || med.name };
+    
+    // Add to Global Cart Context
+    addToCart(safeMed);
+
+    // Give visual feedback by turning the button green for 2 seconds
+    setAddedItems(prev => ({ ...prev, [safeMed.id]: true }));
+    setTimeout(() => {
+      setAddedItems(prev => ({ ...prev, [safeMed.id]: false }));
+    }, 2000);
   };
 
   const handleConsultDoctor = () => {
@@ -85,9 +102,12 @@ const Shop = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {filteredMeds.map((med) => {
               const isRx = med.name.toLowerCase().includes('antibiotic') || med.name.toLowerCase().includes('pressure');
+              
+              // Define the safe ID for rendering the correct button state
+              const safeId = med.id || med.medicine_id || med.name;
 
               return (
-                <div key={med.id} className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden hover:shadow-lg transition-all flex flex-col">
+                <div key={safeId} className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden hover:shadow-lg transition-all flex flex-col">
                   
                   {/* Image Placeholder */}
                   <div className="h-40 bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center relative">
@@ -123,9 +143,18 @@ const Shop = () => {
                       ) : (
                         <button 
                           onClick={() => handleAddToCart(med)}
-                          className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2.5 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-colors"
+                          // 🚨 THE FIX: Dynamic button styling that turns green when clicked
+                          className={`w-full py-2.5 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+                            addedItems[safeId] 
+                              ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' 
+                              : 'bg-gray-900 hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200 text-white shadow-sm'
+                          }`}
                         >
-                          Add to Cart
+                          {addedItems[safeId] ? (
+                            <><CheckCircle className="h-4 w-4" /> Added!</>
+                          ) : (
+                            'Add to Cart'
+                          )}
                         </button>
                       )}
                     </div>
