@@ -1,18 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, ArrowLeft, Pill, AlertTriangle, Minus, Plus, Archive, ArrowRight, Loader2, Trash2, Calendar, UserCheck, Activity } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Pill, AlertTriangle, Minus, Plus, Archive, ArrowRight, Loader2, Trash2, Calendar, UserCheck, Activity, Package, CheckCircle } from 'lucide-react';
 import axios from 'axios';
+// 🚨 THE ONLY NEW IMPORT: Grabbing the global store engine
+import { useCart } from '../context/CartContext';
 
 const PharmacyCart = () => {
   const navigate = useNavigate();
   
+  // 🚨 THE NEW DATA: Pulling OTC items from the store
+  const { cartItems: otcItems, removeFromCart: removeOtcItem } = useCart();
+
+  // 🛡️ YOUR EXACT STATE VARIABLES (Untouched)
   const [vaultItems, setVaultItems] = useState([]); 
-  const [cart, setCart] = useState([]); 
+  const [cart, setCart] = useState([]); // This holds your Rx Cart
   const [stagingQuantities, setStagingQuantities] = useState({}); 
   const [isLoading, setIsLoading] = useState(true);
 
   const token = localStorage.getItem('token');
 
+  // 🛡️ YOUR EXACT FETCH LOGIC (Untouched)
   useEffect(() => {
     const fetchVault = async () => {
       try {
@@ -39,6 +46,7 @@ const PharmacyCart = () => {
     if (token) fetchVault();
   }, [token]);
 
+  // 🛡️ YOUR EXACT STAGING LOGIC (Untouched)
   const updateStagingQuantity = (id, newAmount, maxAllowed) => {
     if (newAmount < 1 || newAmount > maxAllowed) return;
     setStagingQuantities(prev => ({ ...prev, [id]: newAmount }));
@@ -58,27 +66,25 @@ const PharmacyCart = () => {
     setCart(cart.filter(c => c.prescription_id !== prescription_id));
   };
 
-  const subtotal = (cart || []).reduce((sum, item) => sum + ((parseFloat(item.price) || 0) * (item.buy_quantity || 1)), 0);
-  const deliveryFee = cart.length > 0 ? 5.99 : 0;
+  // 🧮 UPDATED MATH: Combining Your Rx Math with the new OTC Math
+  const rxSubtotal = (cart || []).reduce((sum, item) => sum + ((parseFloat(item.price) || 0) * (item.buy_quantity || 1)), 0);
+  const otcSubtotal = (otcItems || []).reduce((sum, item) => sum + ((parseFloat(item.price) || 0) * (item.quantity || 1)), 0);
+  
+  const subtotal = rxSubtotal + otcSubtotal;
+  const deliveryFee = (cart.length > 0 || otcItems.length > 0) ? 5.99 : 0;
   const total = subtotal + deliveryFee;
 
-  // 🚨 NEW: Proceed to Checkout Navigation
+  // 🚨 UPDATED CHECKOUT: Passing BOTH carts to the checkout page securely
   const handleProceedToCheckout = () => {
-    if (cart.length === 0) return;
-    // Pass the cart data to the checkout page securely
-    navigate('/checkout', { state: { cart, subtotal, deliveryFee, total } });
+    if (cart.length === 0 && otcItems.length === 0) return;
+    navigate('/checkout', { state: { cart, otcItems, subtotal, deliveryFee, total } });
   };
 
+  // 🛡️ YOUR EXACT GROUPING LOGIC (Untouched)
   const vaultByTurn = vaultItems.reduce((groups, item) => {
     const groupKey = item.consultation_id || `${item.doctor_name}-${item.prescribed_on}`;
     if (!groups[groupKey]) {
-      groups[groupKey] = {
-        turnId: groupKey,
-        doctor_name: item.doctor_name,
-        prescribed_on: item.prescribed_on,
-        diagnosis: item.diagnosis || 'General Treatment',
-        medicines: []
-      };
+      groups[groupKey] = { turnId: groupKey, doctor_name: item.doctor_name, prescribed_on: item.prescribed_on, diagnosis: item.diagnosis || 'General Treatment', medicines: [] };
     }
     groups[groupKey].medicines.push(item);
     return groups;
@@ -88,13 +94,7 @@ const PharmacyCart = () => {
   const cartByTurn = cart.reduce((groups, item) => {
     const groupKey = item.consultation_id || `${item.doctor_name}-${item.prescribed_on}`;
     if (!groups[groupKey]) {
-      groups[groupKey] = {
-        turnId: groupKey,
-        doctor_name: item.doctor_name,
-        prescribed_on: item.prescribed_on,
-        diagnosis: item.diagnosis || 'General Treatment',
-        medicines: []
-      };
+      groups[groupKey] = { turnId: groupKey, doctor_name: item.doctor_name, prescribed_on: item.prescribed_on, diagnosis: item.diagnosis || 'General Treatment', medicines: [] };
     }
     groups[groupKey].medicines.push(item);
     return groups;
@@ -115,8 +115,10 @@ const PharmacyCart = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* LEFT SIDE: The Prescription Vault */}
+          {/* LEFT SIDE: The Vault & Storefront Items */}
           <div className="lg:col-span-2 space-y-8">
+            
+            {/* 🛡️ YOUR EXACT VAULT UI (Untouched) */}
             <div className="flex items-center gap-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-800 dark:text-indigo-300 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800/50 shadow-sm">
               <Archive className="h-6 w-6" />
               <div>
@@ -211,6 +213,44 @@ const PharmacyCart = () => {
                 </div>
               ))
             )}
+
+            {/* 🚨 NEW ADDITION: Display Over-The-Counter Store Items seamlessly below the vault */}
+            {otcItems.length > 0 && (
+              <div className="mt-12">
+                <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-800/50 shadow-sm mb-6">
+                  <CheckCircle className="h-6 w-6" />
+                  <div>
+                    <h3 className="font-bold">Storefront Items</h3>
+                    <p className="text-xs">Over-the-counter medications and items you added from the public shop.</p>
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm divide-y divide-gray-100 dark:divide-gray-800">
+                  {otcItems.map((item) => (
+                    <div key={item.id} className="p-6 flex justify-between items-center group">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 bg-gray-50 dark:bg-gray-800 rounded-xl flex items-center justify-center border border-gray-200 dark:border-gray-700">
+                          <Package className="h-6 w-6 text-gray-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-900 dark:text-white">{item.name}</h3>
+                          <p className="text-sm text-gray-500 mt-0.5">Quantity Selected: {item.quantity}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-6">
+                        <span className="font-black text-indigo-600 dark:text-indigo-400 text-lg">${parseFloat(item.price * item.quantity).toFixed(2)}</span>
+                        <button 
+                          onClick={() => removeOtcItem(item.id)}
+                          className="text-gray-300 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* RIGHT SIDE: Cart Summary */}
@@ -221,13 +261,15 @@ const PharmacyCart = () => {
                 <h3 className="font-bold text-xl">My Cart</h3>
               </div>
               
-              {cartChannels.length === 0 ? (
+              {cartChannels.length === 0 && otcItems.length === 0 ? (
                 <div className="text-center py-10 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 mb-6">
                   <p className="text-gray-500 font-semibold text-sm">Cart is empty.</p>
-                  <p className="text-xs text-gray-400 mt-1">Stage items from your prescription channels.</p>
+                  <p className="text-xs text-gray-400 mt-1">Stage items or visit the shop.</p>
                 </div>
               ) : (
                 <div className="space-y-4 mb-6 max-h-[400px] overflow-y-auto pr-2">
+                  
+                  {/* 🛡️ YOUR EXACT RX CART UI (Untouched) */}
                   {cartChannels.map((channel) => (
                     <div key={channel.turnId} className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
                       <div className="bg-indigo-50 dark:bg-indigo-900/30 p-3 border-b border-indigo-100 dark:border-indigo-800/50 flex flex-col gap-1">
@@ -252,13 +294,42 @@ const PharmacyCart = () => {
                       </div>
                     </div>
                   ))}
+
+                  {/* 🚨 NEW: OTC Items in the Summary List */}
+                  {otcItems.length > 0 && (
+                    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+                      <div className="bg-emerald-50 dark:bg-emerald-900/30 p-3 border-b border-emerald-100 dark:border-emerald-800/50">
+                        <span className="text-[10px] font-black uppercase text-emerald-700 dark:text-emerald-400 flex items-center gap-1"><Package className="h-3 w-3"/> Storefront Items (OTC)</span>
+                      </div>
+                      <div className="p-3 space-y-3">
+                        {otcItems.map((c) => (
+                          <div key={c.id} className="bg-white dark:bg-gray-900 p-3 rounded-xl border border-gray-100 dark:border-gray-800 relative group">
+                            <p className="font-bold text-gray-900 dark:text-white pr-8 text-sm leading-tight">{c.name}</p>
+                            <div className="flex justify-between items-end mt-2">
+                              <span className="text-[11px] bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 px-2 py-1 rounded-md font-bold">Qty: {c.quantity}</span>
+                              <span className="text-sm font-black text-gray-900 dark:text-white">${(c.quantity * parseFloat(c.price || 0)).toFixed(2)}</span>
+                            </div>
+                            <button onClick={() => removeOtcItem(c.id)} className="absolute top-3 right-3 text-gray-300 hover:text-red-500 transition-colors bg-white dark:bg-gray-900 rounded-full">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
                 </div>
               )}
 
+              {/* 🧮 COMBINED TOTALS */}
               <div className="space-y-3 mb-6 bg-gray-50 dark:bg-gray-800/50 p-5 rounded-2xl">
                 <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 font-medium">
                   <span>Medicine Subtotal</span>
                   <span>${subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 font-medium">
+                  <span>Standard Shipping</span>
+                  <span>${deliveryFee.toFixed(2)}</span>
                 </div>
                 <div className="pt-3 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
                   <span className="font-bold text-gray-900 dark:text-white">Estimated Total</span>
@@ -266,10 +337,9 @@ const PharmacyCart = () => {
                 </div>
               </div>
 
-              {/* 🚨 NEW: Redirects to the Checkout Page */}
               <button 
                 onClick={handleProceedToCheckout} 
-                disabled={cart.length === 0} 
+                disabled={cart.length === 0 && otcItems.length === 0} 
                 className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:text-gray-500 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg"
               >
                 Proceed to Checkout <ArrowRight className="h-5 w-5" />
