@@ -1,5 +1,7 @@
 const db = require('../config/db');
 
+
+
 const initializePharmacy = async () => {
   try {
     await db.query(`ALTER TABLE consultation_prescriptions ADD COLUMN IF NOT EXISTS total_quantity INT DEFAULT 1, ADD COLUMN IF NOT EXISTS purchased_quantity INT DEFAULT 0, ADD COLUMN IF NOT EXISTS valid_until TIMESTAMP;`);
@@ -96,4 +98,63 @@ const processCheckout = async (req, res) => {
     }
 };
 
-module.exports = { getMyCart, processCheckout, getInventory };
+// @desc    Add a new product to the inventory
+// @route   POST /api/pharmacy/inventory
+// @access  Private (Pharmacists & Admins Only)
+const addProduct = async (req, res) => {
+  try {
+    const { 
+      name, 
+      dosage, 
+      type, 
+      category, 
+      price, 
+      stock_quantity, 
+      requires_prescription 
+    } = req.body;
+
+    // 1. Grab the secure image URL from Cloudinary (attached by our middleware)
+    let image_url = null;
+    if (req.file) {
+      image_url = req.file.path; 
+    }
+
+    // 2. Convert string to boolean (FormData sends booleans as strings)
+    const isRx = requires_prescription === 'true';
+
+    // 3. Insert into PostgreSQL securely using parameterized queries to prevent SQL injection
+    const insertQuery = `
+      INSERT INTO public.medicines 
+        (name, dosage, type, category, price, stock_quantity, requires_prescription, image_url)
+      VALUES 
+        ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *;
+    `;
+    
+    const values = [
+      name, 
+      dosage, 
+      type, 
+      category, 
+      price, 
+      stock_quantity, 
+      isRx, 
+      image_url
+    ];
+
+    const newProduct = await pool.query(insertQuery, values);
+
+    // 4. Send success response back to the frontend
+    res.status(201).json({
+      success: true,
+      message: 'Product added successfully',
+      product: newProduct.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Error adding product:', error);
+    res.status(500).json({ success: false, message: 'Server error while adding product' });
+  }
+};
+
+module.exports = { addProduct , getMyCart, processCheckout, getInventory };
