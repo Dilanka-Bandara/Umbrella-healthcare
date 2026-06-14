@@ -86,6 +86,8 @@ const Navbar = () => {
               )}
             </button>
 
+            <button onClick={() => navigate(user.role === 'admin' ? '/admin' : user.role === 'doctor' ? '/doctor-dashboard' : user.role === 'pharmacist' ? '/pharmacist-dashboard' : '/dashboard')} className="..."></button>
+
             {/* Divider */}
             <div className="hidden sm:block h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1"></div>
 

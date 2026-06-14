@@ -35,6 +35,8 @@ import EncounterRoom from './pages/EncounterRoom';
 import AdminDashboard from './pages/AdminDashboard';
 import DoctorReview from './pages/DoctorReview';
 
+import PharmacistDashboard from './pages/PharmacistDashboard';
+
 function App() {
   // 🛒 The Global Cart Engine now wraps the whole app safely outside the return statement
   return (
@@ -72,6 +74,10 @@ function App() {
             
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/review" element={<DoctorReview />} />
+
+            <Route path="/pharmacist-dashboard" element={<PharmacistDashboard />} />
+
+
           </Route>
 
         </Routes>
