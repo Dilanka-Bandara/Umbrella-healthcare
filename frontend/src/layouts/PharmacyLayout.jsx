@@ -102,6 +102,8 @@ const PharmacyLayout = () => {
               className="relative p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors shadow-lg shadow-blue-500/30 ml-1" 
               title="View Cart"
             >
+
+              <button onClick={() => navigate(user.role === 'admin' ? '/admin' : user.role === 'doctor' ? '/doctor-dashboard' : user.role === 'pharmacist' ? '/pharmacist-dashboard' : '/dashboard')} className="..."></button>
               <ShoppingCart className="h-5 w-5" />
               {cartCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white border-2 border-white dark:border-gray-900 text-[10px] font-black h-5 w-5 rounded-full flex items-center justify-center shadow-sm">
