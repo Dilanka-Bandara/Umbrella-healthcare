@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+
+// 1. Import everything EXCEPT addProduct from storeController
 const {
   getCatalog,
   getCategories,
@@ -11,19 +13,17 @@ const {
   decidePermission,
   storeCheckout,
   getMyOrders,
-  addProduct,
 } = require('../controllers/storeController');
+
+// 2. 🚨 THE FIX: Import addProduct from the correct file!
+const { addProduct } = require('../controllers/pharmacyController');
+
+// 3. Import your middlewares
 const { protect, authorizeRole } = require('../middlewares/authMiddleware');
-
-// Import your middlewares
 const upload = require('../middlewares/uploadMiddleware');
-const { protect, authorize } = require('../middlewares/authMiddleware');
 
 
-/* ---------------- PUBLIC-ISH CATALOG (any logged-in user can browse) ----------------
- * We use `protect` so getProduct can show the patient's personal permission state.
- * If you want the catalog visible to logged-out visitors too, drop `protect`
- * from getCatalog/getCategories. */
+/* ---------------- PUBLIC-ISH CATALOG (any logged-in user can browse) ---------------- */
 router.get('/catalog', protect, getCatalog);
 router.get('/categories', protect, getCategories);
 router.get('/product/:id', protect, getProduct);
@@ -41,15 +41,15 @@ router.put('/permission/:id/decide', protect, authorizeRole('doctor'), decidePer
 router.post('/checkout', protect, authorizeRole('patient'), storeCheckout);
 router.get('/orders', protect, authorizeRole('patient'), getMyOrders);
 
-// 🚨 SECURE ROUTE:
+/* ---------------- INVENTORY UPLOAD (Pharmacist / Admin) ---------------- */
 // 1. protect: Verifies the JWT Token
-// 2. authorize: Only allows 'pharmacist' or 'admin' roles
+// 2. authorizeRole: Only allows 'pharmacist' or 'admin' roles
 // 3. upload.single('image'): Intercepts the photo and sends it to Cloudinary
 // 4. addProduct: Saves everything to PostgreSQL
 router.post(
   '/inventory', 
   protect, 
-  authorize('pharmacist', 'admin'), 
+  authorizeRole('pharmacist', 'admin'), 
   upload.single('image'), 
   addProduct
 );
