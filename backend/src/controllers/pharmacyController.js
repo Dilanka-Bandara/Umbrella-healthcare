@@ -1,7 +1,5 @@
 const db = require('../config/db');
 
-
-
 const initializePharmacy = async () => {
   try {
     await db.query(`ALTER TABLE consultation_prescriptions ADD COLUMN IF NOT EXISTS total_quantity INT DEFAULT 1, ADD COLUMN IF NOT EXISTS purchased_quantity INT DEFAULT 0, ADD COLUMN IF NOT EXISTS valid_until TIMESTAMP;`);
@@ -142,7 +140,8 @@ const addProduct = async (req, res) => {
       image_url
     ];
 
-    const newProduct = await pool.query(insertQuery, values);
+    // 🚨 BUG FIXED HERE: Changed 'pool.query' to 'db.query' to match your imports
+    const newProduct = await db.query(insertQuery, values);
 
     // 4. Send success response back to the frontend
     res.status(201).json({
