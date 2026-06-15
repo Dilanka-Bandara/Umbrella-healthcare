@@ -37,6 +37,10 @@ import DoctorReview from './pages/DoctorReview';
 
 import PharmacistDashboard from './pages/PharmacistDashboard';
 
+
+import FulfillmentDashboard from './pages/FulfillmentDashboard';
+
+
 function App() {
   // 🛒 The Global Cart Engine now wraps the whole app safely outside the return statement
   return (
@@ -76,6 +80,8 @@ function App() {
             <Route path="/admin/review" element={<DoctorReview />} />
 
             <Route path="/pharmacist-dashboard" element={<PharmacistDashboard />} />
+
+            <Route path="/fulfillment" element={<FulfillmentDashboard />} />
 
 
           </Route>
