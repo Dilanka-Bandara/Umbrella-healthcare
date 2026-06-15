@@ -10,11 +10,10 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // 🚨 UPGRADE: Added 'role' to the form state, defaulting to 'patient'
+  // 🚨 Restored to clean state: ONLY email and password
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    role: 'patient', 
   });
 
   const handleInputChange = (e) => {
@@ -27,19 +26,16 @@ const Login = () => {
     setError('');
 
     try {
-      // 🚨 UPGRADE: Now sending the selected role to the backend!
-      const response = await axios.post('http://localhost:5000/api/users/login', {
-        email: formData.email,
-        password: formData.password,
-        role: formData.role, 
-      });
+      // 1. Send ONLY the email and password
+      const response = await axios.post('http://localhost:5000/api/users/login', formData);
 
+      // 2. The backend responds with the token and user details (including their role!)
       const { token, user } = response.data;
 
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       
-      // 🚨 UPGRADE: Added Pharmacist Routing
+      // 3. 🚨 SMART ROUTING: Automatically load the correct page based on their permission!
       if (from) {
         navigate(from, { replace: true });
       } else if (user.role === 'admin') {
@@ -47,32 +43,23 @@ const Login = () => {
       } else if (user.role === 'doctor') {
         navigate('/doctor-dashboard');
       } else if (user.role === 'pharmacist') {
-        navigate('/pharmacist-dashboard'); // Routes pharmacist directly to their dashboard!
+        navigate('/pharmacist-dashboard'); 
       } else {
         navigate('/dashboard'); // Patient
       }
 
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || 'Something went wrong during login.');
+      setError(err.response?.data?.message || 'Invalid email or password.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // The available roles for the UI tabs
-  const roles = [
-    { id: 'patient', label: 'Patient' },
-    { id: 'doctor', label: 'Doctor' },
-    { id: 'pharmacist', label: 'Pharmacist' },
-    { id: 'admin', label: 'Admin' }
-  ];
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center py-12 px-4 sm:px-6 transition-colors duration-200">
       <div className="max-w-md w-full space-y-8 bg-white dark:bg-gray-900 p-8 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 animate-in fade-in slide-in-from-bottom-4">
         
-        {/* Universal Back Button */}
         <button 
           onClick={() => navigate(-1)} 
           className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors group absolute top-8 left-8 sm:static sm:mb-4"
@@ -81,7 +68,6 @@ const Login = () => {
           Back
         </button>
         
-        {/* Header */}
         <div className="text-center">
           <div className="mx-auto h-12 w-12 bg-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-blue-500/30">
             <LogIn className="h-6 w-6 text-white" />
@@ -90,34 +76,13 @@ const Login = () => {
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Sign in to your Umbrella Health account.</p>
         </div>
 
-        {/* Error Banner */}
         {error && (
           <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm p-3 rounded-xl text-center font-medium border border-red-100 dark:border-red-800">
             {error}
           </div>
         )}
 
-        {/* Login Form */}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          
-          {/* 🚨 NEW: Role Selection Tabs */}
-          <div className="flex flex-wrap justify-center gap-2 mb-2">
-            {roles.map((r) => (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => setFormData({ ...formData, role: r.id })}
-                className={`px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${
-                  formData.role === r.id
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-                }`}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
-
           <div className="space-y-4">
             <div className="relative">
               <Mail className="absolute top-3 left-3 h-5 w-5 text-gray-400" />
@@ -144,18 +109,6 @@ const Login = () => {
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input id="remember-me" type="checkbox" className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer" />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900 dark:text-gray-300 cursor-pointer">
-                Remember me
-              </label>
-            </div>
-            <a href="#" className="text-sm font-semibold text-blue-600 hover:text-blue-500 dark:text-blue-400 transition-colors">
-              Forgot password?
-            </a>
-          </div>
-
           <button
             type="submit"
             disabled={isLoading}
@@ -165,7 +118,6 @@ const Login = () => {
           </button>
         </form>
 
-        {/* Footer Link */}
         <p className="text-center text-sm text-gray-600 dark:text-gray-400">
           Don't have an account?{' '}
           <Link to="/register" className="font-bold text-blue-600 hover:text-blue-500 dark:text-blue-400 transition-colors">
