@@ -1,23 +1,103 @@
 const db = require('../config/db');
 
-// @desc    Get all orders belonging to the logged-in patient
-// @route   GET /api/orders/my-orders
-const getMyOrders = async (req, res) => {
-    try {
-        // Securely fetch only the orders for the authenticated user
-        const orders = await db.query(
-            `SELECT id, total_amount, status, delivery_address, created_at 
-             FROM orders 
-             WHERE patient_id = $1 
-             ORDER BY created_at DESC`,
-            [req.user.id]
-        );
-        res.status(200).json(orders.rows);
-    } catch (error) {
-        console.error("Order fetch error:", error);
-        res.status(500).json({ message: 'Error fetching order history' });
+// ==========================================
+// 🚨 PATIENT FUNCTIONS (Purchasing)
+// ==========================================
+
+// @desc    Process payment and create a new order
+// @route   POST /api/orders
+// @access  Private (Patients Only)
+const createOrder = async (req, res) => {
+  const client = await db.connect(); // Start a secure database transaction
+
+  try {
+    const { total_amount, shipping_address, rxItems, otcItems } = req.body;
+    const patient_id = req.user.id;
+
+    await client.query('BEGIN'); // 🚨 START TRANSACTION
+
+    // 1. Create the Main Order Record
+    const orderQuery = `
+      INSERT INTO public.orders (patient_id, total_amount, shipping_address, status)
+      VALUES ($1, $2, $3, 'processing')
+      RETURNING id;
+    `;
+    const orderResult = await client.query(orderQuery, [patient_id, total_amount, shipping_address]);
+    const orderId = orderResult.rows[0].id;
+
+    // 2. Process Prescription (Rx) Items
+    if (rxItems && rxItems.length > 0) {
+      for (const item of rxItems) {
+        await client.query(`
+          INSERT INTO public.order_items (order_id, prescription_id, quantity, price_at_purchase)
+          VALUES ($1, $2, $3, $4)
+        `, [orderId, item.prescription_id, item.buy_quantity, item.price]);
+      }
     }
+
+    // 3. Process Over-The-Counter (OTC) Items
+    if (otcItems && otcItems.length > 0) {
+      for (const item of otcItems) {
+        const medQuery = await client.query('SELECT id FROM public.medicines WHERE name = $1', [item.name]);
+        const productId = medQuery.rows.length > 0 ? medQuery.rows[0].id : null;
+
+        await client.query(`
+          INSERT INTO public.order_items (order_id, product_id, quantity, price_at_purchase)
+          VALUES ($1, $2, $3, $4)
+        `, [orderId, productId, item.quantity, item.price]);
+
+        // Reduce the stock quantity in the pharmacy inventory!
+        if (productId) {
+          await client.query(`
+            UPDATE public.medicines 
+            SET stock_quantity = stock_quantity - $1 
+            WHERE id = $2
+          `, [item.quantity, productId]);
+        }
+      }
+    }
+
+    await client.query('COMMIT'); // 🚨 SAVE EVERYTHING!
+
+    res.status(201).json({
+      success: true,
+      message: 'Payment successful and order created!',
+      orderId: orderId
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK'); // 🚨 ERROR OCCURRED! Undo everything
+    console.error('Order Processing Error:', error);
+    res.status(500).json({ success: false, message: 'Payment failed. Order cancelled.' });
+  } finally {
+    client.release();
+  }
 };
+
+// @desc    Get all orders for the logged-in patient
+// @route   GET /api/orders/my-orders
+// @access  Private (Patients Only)
+const getMyOrders = async (req, res) => {
+  try {
+    const patient_id = req.user.id;
+    const query = `
+      SELECT id, total_amount, status, shipping_address, courier_tracking_id, created_at 
+      FROM public.orders 
+      WHERE patient_id = $1 
+      ORDER BY created_at DESC;
+    `;
+    const result = await db.query(query, [patient_id]);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Fetch Orders Error:', error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+
+// ==========================================
+// 🚨 STAFF FUNCTIONS (Fulfillment)
+// ==========================================
 
 // @desc    Get ALL orders for the Staff Dashboard
 // @route   GET /api/orders
@@ -31,7 +111,7 @@ const getAllOrders = async (req, res) => {
       JOIN public.users u ON o.patient_id = u.id
       ORDER BY o.created_at DESC;
     `;
-    const result = await pool.query(query);
+    const result = await db.query(query);
     res.json(result.rows);
   } catch (error) {
     console.error('Fetch All Orders Error:', error);
@@ -59,7 +139,7 @@ const updateOrderStatus = async (req, res) => {
     // Convert undefined to null for Postgres
     const tracking = courier_tracking_id ? courier_tracking_id : null;
     
-    const result = await pool.query(updateQuery, [status, tracking, id]);
+    const result = await db.query(updateQuery, [status, tracking, id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Order not found' });
@@ -72,10 +152,7 @@ const updateOrderStatus = async (req, res) => {
   }
 };
 
-
-
-
-
+// Export ALL 4 functions
 module.exports = {
   createOrder,
   getMyOrders,

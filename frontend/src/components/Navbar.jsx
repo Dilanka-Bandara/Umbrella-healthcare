@@ -108,6 +108,13 @@ const Navbar = () => {
                 Sign In
               </button>
             )}
+
+            // You can add a specific button for staff:
+              {(user?.role === 'admin' || user?.role === 'pharmacist') && (
+                <button onClick={() => navigate('/fulfillment')} className="text-gray-600 dark:text-gray-300 hover:text-blue-600 font-bold text-sm transition-colors hidden sm:block">
+                  Fulfillment
+                </button>
+              )}
           </div>
 
         </div>
