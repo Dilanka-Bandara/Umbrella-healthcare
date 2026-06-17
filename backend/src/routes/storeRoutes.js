@@ -20,7 +20,7 @@ const { addProduct } = require('../controllers/pharmacyController');
 
 // 3. Import your middlewares
 const { protect, authorizeRole } = require('../middlewares/authMiddleware');
-const upload = require('../middlewares/uploadMiddleware');
+const { upload } = require('../middlewares/uploadMiddleware');
 
 
 /* ---------------- PUBLIC-ISH CATALOG (any logged-in user can browse) ---------------- */
