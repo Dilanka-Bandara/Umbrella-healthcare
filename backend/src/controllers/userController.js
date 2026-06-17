@@ -72,45 +72,28 @@ const registerUser = async (req, res) => {
 const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
-
-        // 🚨 UPGRADE 1: Clean the email of any accidental spaces and lowercase it
-        const cleanEmail = email.trim().toLowerCase();
         
-        console.log(`[LOGIN ATTEMPT] Email: ${cleanEmail}`);
+        // Clean the email so accidental spaces don't break the login
+        const cleanEmail = email.trim().toLowerCase();
 
         // 1. Check if the user exists in the database
-        let userResult = await db.query('SELECT * FROM users WHERE email = $1', [cleanEmail]);
-        let user;
+        const userResult = await db.query('SELECT * FROM users WHERE email = $1', [cleanEmail]);
 
-        // 🚨 UPGRADE 2: Foolproof Pharmacist Auto-Creation
-        // If the pharmacist account doesn't exist yet, build it right now and log them in!
-        if (userResult.rows.length === 0 && cleanEmail === 'pharmacist@umbrella.com') {
-            console.log("[SYSTEM] Pharmacist account missing! Auto-creating...");
-            
-            const salt = await bcrypt.genSalt(10);
-            const autoHash = await bcrypt.hash('password123', salt);
-            
-            await db.query(`
-                INSERT INTO users (role, full_name, email, password_hash, is_active, is_verified)
-                VALUES ('pharmacist', 'Dr. Sarah (Pharmacy Manager)', 'pharmacist@umbrella.com', $1, true, true)
-            `, [autoHash]);
-
-            // Re-fetch the newly created user
-            userResult = await db.query('SELECT * FROM users WHERE email = $1', [cleanEmail]);
-            user = userResult.rows[0];
-        } 
-        else if (userResult.rows.length === 0) {
-            // Normal behavior for any other incorrect email
+        if (userResult.rows.length === 0) {
             return res.status(400).json({ message: 'Invalid email or password' });
-        } else {
-            user = userResult.rows[0];
+        }
+
+        const user = userResult.rows[0];
+
+        // 🚨 NEW DATABASE CHECK: Ensure the user's account is active!
+        if (user.is_active === false) {
+            return res.status(403).json({ message: 'Your account has been deactivated.' });
         }
 
         // 2. Compare the typed password with the scrambled password in the database
         const isMatch = await bcrypt.compare(password, user.password_hash);
 
         if (!isMatch) {
-            console.log(`[LOGIN FAILED] Password mismatch for: ${cleanEmail}`);
             return res.status(400).json({ message: 'Invalid email or password' });
         }
 
@@ -122,14 +105,11 @@ const loginUser = async (req, res) => {
         }
 
         // 3. Generate the Digital Badge (JWT)
-        // 🚨 UPGRADE 3: Added a fallback secret just in case your .env file isn't loading properly
         const token = jwt.sign(
             { id: user.id, role: user.role },
-            process.env.JWT_SECRET || 'umbrella_fallback_secret_key_123',
+            process.env.JWT_SECRET,
             { expiresIn: '1d' } 
         );
-
-        console.log(`[LOGIN SUCCESS] Authenticated ${user.role}: ${cleanEmail}`);
 
         // 4. Send the token and user details back to the frontend
         res.status(200).json({
