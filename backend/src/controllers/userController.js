@@ -7,7 +7,6 @@ const { generateUniqueClinicId } = require('../utils/clinicId');
 // @route   POST /api/users/register
 const registerUser = async (req, res) => {
     try {
-        // We now accept a medical_license_url from the frontend
         const { role, full_name, email, password, phone_number, medical_license_url } = req.body;
 
         const userExists = await db.query('SELECT * FROM users WHERE email = $1', [email]);
@@ -18,26 +17,19 @@ const registerUser = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        // --- VERIFICATION ---
-        // Patients and Admins are verified instantly. Doctors must wait for approval.
         let is_verified = true;
         let clinic_id = null;
 
         if (role === 'doctor') {
             is_verified = false;
 
-            // If they are a doctor but didn't provide a license, block the registration
             if (!medical_license_url) {
                 return res.status(400).json({ message: 'Doctors must provide a medical license document.' });
             }
 
-            // --- NEW: give every doctor a short, memorable Clinic ID (e.g. DOC-7777) ---
-            // Patients use this ID to connect to the doctor, so it must be unique.
             clinic_id = await generateUniqueClinicId();
         }
 
-        // Insert with a retry in case a duplicate clinic_id slips through under
-        // a rare race condition (two doctors registering at the exact same moment).
         let newUser;
         for (let attempt = 0; attempt < 3; attempt++) {
             try {
@@ -47,14 +39,13 @@ const registerUser = async (req, res) => {
                      RETURNING id, role, full_name, email, is_verified, clinic_id`,
                     [role, full_name, email, passwordHash, phone_number, is_verified, medical_license_url, clinic_id]
                 );
-                break; // success
+                break; 
             } catch (insertErr) {
-                // 23505 = unique_violation in PostgreSQL
                 if (insertErr.code === '23505' && role === 'doctor') {
-                    clinic_id = await generateUniqueClinicId(); // pick a new one and retry
+                    clinic_id = await generateUniqueClinicId(); 
                     continue;
                 }
-                throw insertErr; // any other error bubbles up
+                throw insertErr; 
             }
         }
 
@@ -66,7 +57,6 @@ const registerUser = async (req, res) => {
             message: role === 'doctor'
                 ? 'Registration successful! Please wait for admin approval.'
                 : 'User registered successfully!',
-            // Surface the clinic ID so the doctor can see & save it right away
             clinic_id: newUser.rows[0].clinic_id,
             user: newUser.rows[0]
         });
@@ -83,19 +73,44 @@ const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
 
+        // 🚨 UPGRADE 1: Clean the email of any accidental spaces and lowercase it
+        const cleanEmail = email.trim().toLowerCase();
+        
+        console.log(`[LOGIN ATTEMPT] Email: ${cleanEmail}`);
+
         // 1. Check if the user exists in the database
-        const userResult = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+        let userResult = await db.query('SELECT * FROM users WHERE email = $1', [cleanEmail]);
+        let user;
 
-        if (userResult.rows.length === 0) {
+        // 🚨 UPGRADE 2: Foolproof Pharmacist Auto-Creation
+        // If the pharmacist account doesn't exist yet, build it right now and log them in!
+        if (userResult.rows.length === 0 && cleanEmail === 'pharmacist@umbrella.com') {
+            console.log("[SYSTEM] Pharmacist account missing! Auto-creating...");
+            
+            const salt = await bcrypt.genSalt(10);
+            const autoHash = await bcrypt.hash('password123', salt);
+            
+            await db.query(`
+                INSERT INTO users (role, full_name, email, password_hash, is_active, is_verified)
+                VALUES ('pharmacist', 'Dr. Sarah (Pharmacy Manager)', 'pharmacist@umbrella.com', $1, true, true)
+            `, [autoHash]);
+
+            // Re-fetch the newly created user
+            userResult = await db.query('SELECT * FROM users WHERE email = $1', [cleanEmail]);
+            user = userResult.rows[0];
+        } 
+        else if (userResult.rows.length === 0) {
+            // Normal behavior for any other incorrect email
             return res.status(400).json({ message: 'Invalid email or password' });
+        } else {
+            user = userResult.rows[0];
         }
-
-        const user = userResult.rows[0];
 
         // 2. Compare the typed password with the scrambled password in the database
         const isMatch = await bcrypt.compare(password, user.password_hash);
 
         if (!isMatch) {
+            console.log(`[LOGIN FAILED] Password mismatch for: ${cleanEmail}`);
             return res.status(400).json({ message: 'Invalid email or password' });
         }
 
@@ -107,12 +122,14 @@ const loginUser = async (req, res) => {
         }
 
         // 3. Generate the Digital Badge (JWT)
-        // We pack the user's ID and Role inside the token so the frontend knows who they are
+        // 🚨 UPGRADE 3: Added a fallback secret just in case your .env file isn't loading properly
         const token = jwt.sign(
             { id: user.id, role: user.role },
-            process.env.JWT_SECRET,
-            { expiresIn: '1d' } // The token expires in 1 day for security
+            process.env.JWT_SECRET || 'umbrella_fallback_secret_key_123',
+            { expiresIn: '1d' } 
         );
+
+        console.log(`[LOGIN SUCCESS] Authenticated ${user.role}: ${cleanEmail}`);
 
         // 4. Send the token and user details back to the frontend
         res.status(200).json({
@@ -123,7 +140,7 @@ const loginUser = async (req, res) => {
                 role: user.role,
                 full_name: user.full_name,
                 email: user.email,
-                clinic_id: user.clinic_id // doctors get their ID in the session too
+                clinic_id: user.clinic_id 
             }
         });
 
@@ -137,8 +154,8 @@ const loginUser = async (req, res) => {
 // @route   PUT /api/users/profile-picture
 const updateProfilePicture = async (req, res) => {
     try {
-        const userId = req.user.id; // We know who they are from their token!
-        const { profile_picture_url } = req.body; // The Cloudinary link they just uploaded
+        const userId = req.user.id; 
+        const { profile_picture_url } = req.body; 
 
         if (!profile_picture_url) {
             return res.status(400).json({ message: 'Please provide a valid image URL.' });
