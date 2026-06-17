@@ -43,28 +43,48 @@ const PharmacistDashboard = () => {
     setIsLoading(true);
 
     try {
-      // In a real app, this sends a FormData object to your uploadController
-      // For now, we simulate the network request
-      const data = new FormData();
-      Object.keys(formData).forEach(key => data.append(key, formData[key]));
+      // 1. Create a secure FormData object (Required for sending files)
+      const submitData = new FormData();
+      
+      // 2. Append all the standard text fields
+      submitData.append('name', formData.name);
+      submitData.append('dosage', formData.dosage);
+      submitData.append('type', formData.type);
+      submitData.append('category', formData.category);
+      submitData.append('price', formData.price);
+      submitData.append('stock_quantity', formData.stock_quantity);
+      submitData.append('requires_prescription', formData.requires_prescription);
+
+      // 3. Append the actual Image File! 
+      // The key 'image' must perfectly match `upload.single('image')` in your backend
+      if (formData.image) {
+        submitData.append('image', formData.image);
+      } else {
+        alert("Please upload a product photo!");
+        setIsLoading(false);
+        return;
+      }
       
       const token = localStorage.getItem('token');
-      // Simulated API Call
-      // await axios.post('http://localhost:5000/api/pharmacy/inventory', data, { headers: { Authorization: `Bearer ${token}` } });
       
-      setTimeout(() => {
-        setIsLoading(false);
-        setSuccess(true);
-        // Reset form after 3 seconds
-        setTimeout(() => {
-          setSuccess(false);
-          setFormData({ name: '', dosage: '', type: 'Pill', category: 'OTC', price: '', stock_quantity: '', requires_prescription: false, image: null });
-          setImagePreview(null);
-        }, 3000);
-      }, 1500);
-
+      // 4. Send to backend with the special multipart header
+      const response = await axios.post('http://localhost:5000/api/pharmacy/inventory', submitData, { 
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data' // 🚨 CRITICAL: Tells the backend a file is coming!
+        } 
+      });
+      
+      // 5. Success!
+      alert("Product successfully added to the store!");
+      
+      // Reset your form state here if you wish
+      setFormData({ name: '', dosage: '', type: '', category: '', price: '', stock_quantity: '', requires_prescription: false, image: null });
+      
     } catch (error) {
-      console.error("Failed to add product", error);
+      console.error("Failed to add product:", error);
+      alert(error.response?.data?.message || "Failed to upload product. Please try again.");
+    } finally {
       setIsLoading(false);
     }
   };
