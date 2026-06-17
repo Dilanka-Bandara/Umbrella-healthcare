@@ -5,6 +5,19 @@ const initializePharmacy = async () => {
     await db.query(`ALTER TABLE consultation_prescriptions ADD COLUMN IF NOT EXISTS total_quantity INT DEFAULT 1, ADD COLUMN IF NOT EXISTS purchased_quantity INT DEFAULT 0, ADD COLUMN IF NOT EXISTS valid_until TIMESTAMP;`);
     await db.query(`CREATE TABLE IF NOT EXISTS medicines (id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), name VARCHAR(255) NOT NULL, type VARCHAR(50), price DECIMAL(10,2) DEFAULT 0.00);`);
 
+    // 🚨 NEW: Auto-create the Pharmacist Account if it is missing!
+    const userCheck = await db.query("SELECT * FROM users WHERE email = 'pharmacist@umbrella.com'");
+    if (userCheck.rows.length === 0) {
+        await db.query(`
+            INSERT INTO users (role, full_name, email, password_hash, is_active, is_verified)
+            VALUES ('pharmacist', 'Dr. Sarah (Pharmacy Manager)', 'pharmacist@umbrella.com', '$2b$10$wE/qjB4rV38c4b.E9G89EuR2vY3a3qP.I/G6V7Q.Xp0pL2iE4R8O6', true, true)
+        `);
+        console.log("✅ Pharmacist account auto-created!");
+    } else {
+        // Just in case you accidentally registered this email as a patient earlier, this forces it back to a Pharmacist with password123!
+        await db.query(`UPDATE users SET role = 'pharmacist', password_hash = '$2b$10$wE/qjB4rV38c4b.E9G89EuR2vY3a3qP.I/G6V7Q.Xp0pL2iE4R8O6' WHERE email = 'pharmacist@umbrella.com'`);
+    }
+
     const check = await db.query('SELECT count(*) FROM medicines');
     if (parseInt(check.rows[0].count) === 0) {
        await db.query(`INSERT INTO medicines (name, type, price) VALUES 
@@ -13,7 +26,7 @@ const initializePharmacy = async () => {
          ('Paracetamol 500mg (Pain Relief)', 'Tablet', 5.99),
          ('Omeprazole 20mg (Acid Reflux)', 'Capsule', 15.00)`);
     }
-  } catch (err) { console.log("DB Check Skipped."); }
+  } catch (err) { console.error("Pharmacy DB Init Error:", err.message); }
 };
 initializePharmacy();
 
