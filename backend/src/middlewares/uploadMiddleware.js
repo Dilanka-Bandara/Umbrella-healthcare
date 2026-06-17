@@ -1,17 +1,26 @@
-const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const cloudinary = require('../config/cloudinary');
+const multer = require('multer');
+require('dotenv').config();
 
-// Configure Cloudinary Storage
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'healthtech_pharmacy', // All your medicine photos will go to this folder in Cloudinary!
-    allowedFormats: ['jpeg', 'png', 'jpg', 'webp'],
-    transformation: [{ width: 800, height: 800, crop: 'limit' }] // Auto-resize to keep your app fast
-  }
+// 1. Log in to Cloudinary
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
+// 2. Set up the Storage Engine
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'umbrella_pharmacy', 
+        allowed_formats: ['jpg', 'png', 'jpeg', 'webp'], 
+    }
+});
+
+// 3. Create the Multer upload middleware
 const upload = multer({ storage: storage });
 
+// 🚨 THE FIX: Export 'upload' directly (no curly braces!)
 module.exports = upload;

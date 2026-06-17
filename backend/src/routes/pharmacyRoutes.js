@@ -3,22 +3,31 @@ const router = express.Router();
 const { addProduct, getInventory, getMyCart, processCheckout } = require('../controllers/pharmacyController');
 const { protect, authorizeRole } = require('../middlewares/authMiddleware');
 
-// 🚨 IMPORT YOUR PERFECT UPLOAD MIDDLEWARE
-// Note the curly braces { upload } because you exported an object!
-const { upload } = require('../middlewares/uploadMiddleware'); 
+// 🚨 THE FIX: Import 'upload' directly without the curly braces!
+const upload = require('../middlewares/uploadMiddleware'); 
 
-// 🚨 PLUG IT IN: Add `upload.single('image')` right before `addProduct`
+// ==========================================
+// 🚨 PHARMACIST / ADMIN ROUTES
+// ==========================================
+// Add a new product (Catches the photo using upload.single)
 router.post(
   '/inventory', 
   protect, 
   authorizeRole('pharmacist', 'admin'), 
-  upload.single('image'), // This tells Multer to look for a file named "image"
+  upload.single('image'), 
   addProduct
 );
 
-// ... your other pharmacy routes (cart, checkout, etc.)
+// ==========================================
+// 🚨 PUBLIC / PATIENT ROUTES
+// ==========================================
+// View all products in the storefront
 router.get('/inventory', getInventory);
+
+// Get Patient's active prescriptions (Cart)
 router.get('/my-cart', protect, authorizeRole('patient'), getMyCart);
+
+// Checkout and pay for medications
 router.post('/checkout', protect, authorizeRole('patient'), processCheckout);
 
 module.exports = router;
