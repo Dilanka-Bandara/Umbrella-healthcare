@@ -10,8 +10,8 @@ import {
   UserCheck,
 } from 'lucide-react';
 
-const API = 'http://localhost:5000/api/admin';
-const VERIFY_API = 'http://localhost:5000/api/verification';
+const API = `${import.meta.env.VITE_API_URL}/api/admin`;
+const VERIFY_API = `${import.meta.env.VITE_API_URL}/api/verification`;
 
 const AdminDashboardInner = () => {
   const navigate = useNavigate();

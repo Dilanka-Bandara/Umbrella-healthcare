@@ -19,7 +19,7 @@ const ConnectDoctor = () => {
       const token = localStorage.getItem('token');
 
       // 2. Send the actual connection request to the backend
-      const response = await axios.post('http://localhost:5000/api/patients/connect-doctor', 
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/patients/connect-doctor`, 
         { doctor_clinic_id: doctorId },
         { headers: { Authorization: `Bearer ${token}` } }
       );

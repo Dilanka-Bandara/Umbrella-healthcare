@@ -5,7 +5,7 @@ import {
   Package, Truck, CheckCircle, Clock, X, Loader2, Pill, MapPin, Home, ChevronRight,
 } from 'lucide-react';
 
-const API = 'http://localhost:5000/api/store';
+const API = `${import.meta.env.VITE_API_URL}/api/store`;
 const STATUS_STEPS = ['processing', 'verified', 'shipped', 'delivered'];
 
 const PharmacyOrders = () => {

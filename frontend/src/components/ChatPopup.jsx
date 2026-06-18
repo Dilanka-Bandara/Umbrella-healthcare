@@ -3,7 +3,7 @@ import { X, Send, User, ChevronLeft, MessageSquare, AlertCircle, Clock } from 'l
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:5000');
+const socket = io(import.meta.env.VITE_API_URL);
 
 const ChatPopup = ({ isOpen, onClose, careTeam }) => {
   // UI States
@@ -33,7 +33,7 @@ const ChatPopup = ({ isOpen, onClose, careTeam }) => {
 
     const fetchHistory = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/messages/${activeDoctor.id}`, {
+        const response = await axios.get(`http://${import.meta.env.VITE_API_URL}${import.meta.env.VITE_API_URL}/api/messages/${activeDoctor.id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setChatLog(response.data);

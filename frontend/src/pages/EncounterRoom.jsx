@@ -4,7 +4,7 @@ import { ArrowLeft, User, Pill, PenTool, CheckCircle, MessageSquare, History, Se
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:5000');
+const socket = io(`${import.meta.env.VITE_API_URL}`);
 
 const EncounterRoom = () => {
   const { targetId } = useParams();
@@ -130,7 +130,7 @@ const EncounterRoom = () => {
 
     try {
       const config = { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } };
-      const uploadRes = await axios.post('http://localhost:5000/api/upload', formData, config);
+      const uploadRes = await axios.post(`${import.meta.env.VITE_API_URL}/api/upload`, formData, config);
       setSessionFiles(prev => [...prev, { name: file.name, url: uploadRes.data.file_url }]);
       alert("File uploaded successfully and attached to this session!");
     } catch (error) {
@@ -183,10 +183,10 @@ const EncounterRoom = () => {
 
     if (isDoctor) {
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      axios.get(`http://localhost:5000/api/consultations/history/${targetId}`, config)
+      axios.get(`${import.meta.env.VITE_API_URL}/api/consultations/history/${targetId}`, config)
            .then(res => setPatientHistory(res.data)).catch(console.error);
            
-      axios.get(`http://localhost:5000/api/pharmacy/inventory`, config)
+      axios.get(`${import.meta.env.VITE_API_URL}/api/pharmacy/inventory`, config)
            .then(res => setPharmacyDatabase(res.data)).catch(console.error);
     }
     return () => socket.off('receive_message');
@@ -233,7 +233,7 @@ const EncounterRoom = () => {
           const formData = new FormData();
           formData.append('document', blob, 'doctor-handwritten-note.png');
           
-          const uploadRes = await axios.post('http://localhost:5000/api/upload', formData, {
+          const uploadRes = await axios.post(`${import.meta.env.VITE_API_URL}/api/upload`, formData, {
             headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
           });
           
@@ -244,10 +244,10 @@ const EncounterRoom = () => {
       }
 
       if (editingId) {
-        await axios.put(`http://localhost:5000/api/consultations/record/${editingId}`, { symptoms_notes: symptoms, diagnosis: diagnosis }, config);
+        await axios.put(`${import.meta.env.VITE_API_URL}/api/consultations/record/${editingId}`, { symptoms_notes: symptoms, diagnosis: diagnosis }, config);
         alert("Medical Record updated successfully!");
       } else {
-        const recordRes = await axios.post('http://localhost:5000/api/consultations/record', {
+        const recordRes = await axios.post(`${import.meta.env.VITE_API_URL}/api/consultations/record`, {
           patient_id: targetId, symptoms_notes: symptoms, diagnosis: diagnosis, file_urls: finalFileUrls 
         }, config);
         
@@ -256,7 +256,7 @@ const EncounterRoom = () => {
         if (rxCart.length > 0) {
           for (const rx of rxCart) {
             try {
-               await axios.post(`http://localhost:5000/api/consultations/record/${consultId}/prescribe`, {
+               await axios.post(`${import.meta.env.VITE_API_URL}/api/consultations/record/${consultId}/prescribe`, {
                  medicine_id: rx.medicine_id,
                  instructions: rx.instructions,
                  total_quantity: rx.total_quantity, 

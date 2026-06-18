@@ -5,7 +5,7 @@ import {
   Lock, Check, X, MessageSquare, Loader2, Pill, ShieldCheck, ChevronDown, ChevronUp,
 } from 'lucide-react';
 
-const API = 'http://localhost:5000/api/store';
+const API = `${import.meta.env.VITE_API_URL}/api/store`;
 
 const SpecialRequests = () => {
   const navigate = useNavigate();

@@ -21,9 +21,9 @@ const PatientDashboard = () => {
     const fetchDashboardData = async () => {
       try {
         const config = { headers: { Authorization: `Bearer ${token}` } };
-        const teamRes = await axios.get('http://localhost:5000/api/patients/my-doctors', config);
+        const teamRes = await axios.get(`${import.meta.env.VITE_API_URL}/api/patients/my-doctors`, config);
         setMyCareTeam(teamRes.data);
-        const historyRes = await axios.get('http://localhost:5000/api/patients/my-history', config);
+        const historyRes = await axios.get(`${import.meta.env.VITE_API_URL}/api/patients/my-history`, config);
         setMedicalHistory(historyRes.data);
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
