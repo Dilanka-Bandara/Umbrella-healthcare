@@ -1,0 +1,10 @@
+# Security
+.env
+.env.*
+*.pem
+
+# Dependencies
+node_modules/
+
+# OS Files
+.DS_Store
