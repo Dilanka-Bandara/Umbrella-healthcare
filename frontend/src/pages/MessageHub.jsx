@@ -4,7 +4,7 @@ import { ArrowLeft, Send, User, MessageCircle, Search } from 'lucide-react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:5000');
+const socket = io(`${import.meta.env.VITE_API_URL}`);
 
 const MessageHub = () => {
   const navigate = useNavigate();
@@ -23,7 +23,7 @@ const MessageHub = () => {
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/doctors/all-patients', {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/doctors/all-patients`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setEncounters(response.data);
@@ -44,7 +44,7 @@ const MessageHub = () => {
 
     const fetchHistory = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/messages/${activeChat.patient_id}`, {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/messages/${activeChat.patient_id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setChatLog(response.data);

@@ -27,7 +27,7 @@ const Login = () => {
 
     try {
       // 1. Send ONLY the email and password
-      const response = await axios.post('http://localhost:5000/api/users/login', formData);
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/users/login`, formData);
 
       // 2. The backend responds with the token and user details (including their role!)
       const { token, user } = response.data;

@@ -17,7 +17,7 @@ const FulfillmentDashboard = () => {
   const fetchOrders = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:5000/api/orders', {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/orders`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setOrders(res.data);
@@ -38,7 +38,7 @@ const FulfillmentDashboard = () => {
       const token = localStorage.getItem('token');
       const trackingId = trackingInputs[orderId] || null;
 
-      await axios.put(`http://localhost:5000/api/orders/${orderId}/status`, 
+      await axios.put(`${import.meta.env.VITE_API_URL}/api/orders/${orderId}/status`, 
         { status: 'shipped', courier_tracking_id: trackingId },
         { headers: { Authorization: `Bearer ${token}` } }
       );

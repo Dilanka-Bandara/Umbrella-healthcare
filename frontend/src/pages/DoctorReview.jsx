@@ -7,7 +7,7 @@ import {
   Files, Clock,
 } from 'lucide-react';
 
-const API = 'http://localhost:5000/api/verification';
+const API = `${import.meta.env.VITE_API_URL}/api/verification`;
 
 const DoctorReview = () => {
   const location = useLocation();

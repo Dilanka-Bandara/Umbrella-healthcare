@@ -53,7 +53,7 @@ const Checkout = () => {
     const fullAddress = `${formData.address1}, ${formData.city}, ${formData.zip}`;
 
     try {
-      await axios.post('http://localhost:5000/api/pharmacy/checkout', {
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/pharmacy/checkout`, {
         items: itemsToBuy,
         total_paid: total,
         delivery_address: fullAddress || 'Address not provided'

@@ -36,9 +36,9 @@ const DoctorDashboard = () => {
   const fetchData = async () => {
     try {
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const liveRes = await axios.get('http://localhost:5000/api/doctors/my-patients', config);
+      const liveRes = await axios.get(`${import.meta.env.VITE_API_URL}/api/doctors/my-patients`, config);
       setLivePatients(liveRes.data);
-      const allRes = await axios.get('http://localhost:5000/api/doctors/all-patients', config);
+      const allRes = await axios.get(`${import.meta.env.VITE_API_URL}/api/doctors/all-patients`, config);
       setAllPatients(allRes.data);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -65,9 +65,9 @@ const DoctorDashboard = () => {
     setSelectedVaultPatient(patient);
     try {
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const histRes = await axios.get(`http://localhost:5000/api/consultations/history/${patient.id}`, config);
+      const histRes = await axios.get(`${import.meta.env.VITE_API_URL}/api/consultations/history/${patient.id}`, config);
       setVaultHistory(histRes.data);
-      const docRes = await axios.get(`http://localhost:5000/api/doctors/patient/${patient.id}/documents`, config);
+      const docRes = await axios.get(`${import.meta.env.VITE_API_URL}/api/doctors/patient/${patient.id}/documents`, config);
       setVaultDocuments(docRes.data);
     } catch (error) {
       console.error("Error opening vault:", error);
@@ -85,10 +85,10 @@ const DoctorDashboard = () => {
 
     try {
       const config = { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } };
-      const uploadRes = await axios.post('http://localhost:5000/api/upload', formData, config);
+      const uploadRes = await axios.post(`${import.meta.env.VITE_API_URL}/api/upload`, formData, config);
       const fileUrl = uploadRes.data.file_url;
 
-      await axios.post(`http://localhost:5000/api/doctors/patient/${selectedVaultPatient.id}/document`, {
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/doctors/patient/${selectedVaultPatient.id}/document`, {
         file_url: fileUrl,
         file_name: file.name
       }, { headers: { Authorization: `Bearer ${token}` } });

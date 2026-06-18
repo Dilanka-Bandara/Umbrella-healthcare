@@ -23,7 +23,7 @@ const PharmacyCart = () => {
   useEffect(() => {
     const fetchVault = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/pharmacy/my-cart', {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/pharmacy/my-cart`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         

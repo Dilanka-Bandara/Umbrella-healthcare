@@ -68,7 +68,7 @@ const PharmacistDashboard = () => {
       const token = localStorage.getItem('token');
       
       // 4. Send to backend with the special multipart header
-      const response = await axios.post('http://localhost:5000/api/pharmacy/inventory', submitData, { 
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/pharmacy/inventory`, submitData, { 
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'multipart/form-data' // 🚨 CRITICAL: Tells the backend a file is coming!
